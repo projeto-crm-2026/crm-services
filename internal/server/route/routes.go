@@ -9,7 +9,9 @@ import (
 
 func New(
 	healthHandler *handler.HealthHandler,
+	userHandler *handler.UserHandler,
 	contentJSONMiddleware func(http.Handler) http.Handler,
+	jwtMiddleware func(http.Handler) http.Handler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -17,7 +19,15 @@ func New(
 
 	r.Group(func(r chi.Router) {
 		r.Use(contentJSONMiddleware)
-		// outras rotas
+		r.Post("/register", userHandler.Register)
+		r.Post("/login", userHandler.Login)
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(contentJSONMiddleware)
+		r.Use(jwtMiddleware)
+
+		// rotas que serão protegidas, dps discutimos
 	})
 
 	return r

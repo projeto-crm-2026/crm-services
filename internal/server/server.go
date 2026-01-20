@@ -15,9 +15,11 @@ import (
 type Server struct {
 	logger                *slog.Logger
 	cfg                   *config.Config
-	db                    *repo.Repo
-	healthHandle          *handler.HealthHandler
+	db                    *repo.Conn
+	healthHandler         *handler.HealthHandler
+	userHandler           *handler.UserHandler
 	contentJSONMiddleware func(http.Handler) http.Handler
+	jwtMiddleware         func(http.Handler) http.Handler
 	httpSrv               *http.Server
 }
 
@@ -31,17 +33,27 @@ func WithConfig(cfg *config.Config) Option {
 	return func(s *Server) { s.cfg = cfg }
 }
 
-func WithDB(db *repo.Repo) Option {
+func WithDB(db *repo.Conn) Option {
 	return func(s *Server) { s.db = db }
 }
 
 func WithHealthHandler(h *handler.HealthHandler) Option {
-	return func(s *Server) { s.healthHandle = h }
+	return func(s *Server) { s.healthHandler = h }
+}
+
+func WithUserHandler(h *handler.UserHandler) Option {
+	return func(s *Server) { s.userHandler = h }
 }
 
 func WithContentJSONMiddleware(mw func(http.Handler) http.Handler) Option {
 	return func(s *Server) {
 		s.contentJSONMiddleware = mw
+	}
+}
+
+func WithJWTMiddleware(mw func(http.Handler) http.Handler) Option {
+	return func(s *Server) {
+		s.jwtMiddleware = mw
 	}
 }
 
@@ -52,7 +64,7 @@ func NewServer(opts ...Option) *Server {
 	}
 	s.httpSrv = &http.Server{
 		Addr:    s.cfg.Server.Address,
-		Handler: route.New(s.healthHandle, s.contentJSONMiddleware),
+		Handler: route.New(s.healthHandler, s.userHandler, s.contentJSONMiddleware, s.jwtMiddleware),
 	}
 
 	return s

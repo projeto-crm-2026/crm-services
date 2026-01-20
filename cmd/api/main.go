@@ -8,10 +8,12 @@ import (
 	"syscall"
 
 	"github.com/projeto-crm-2026/crm-services/internal/config"
+	"github.com/projeto-crm-2026/crm-services/internal/domain/entity"
 	"github.com/projeto-crm-2026/crm-services/internal/repo"
 	"github.com/projeto-crm-2026/crm-services/internal/server"
 	"github.com/projeto-crm-2026/crm-services/internal/server/handler"
 	"github.com/projeto-crm-2026/crm-services/internal/server/middleware"
+	"github.com/projeto-crm-2026/crm-services/internal/service/userservice"
 )
 
 func main() {
@@ -28,24 +30,51 @@ func main() {
 		cancel()
 	}()
 
+	// configs
 	cfg := config.LoadConfigs(logger)
 
-	db, err := repo.Connect(cfg.DB)
+	// database
+	dbConn, err := repo.Connect(cfg.DB)
 	if err != nil {
 		logger.Error("failed to connect to database", "error", err)
 		os.Exit(1)
 	}
 
-	healthHandler := handler.NewHealthHandler()
+	gormDB := dbConn.GetDB()
 
+	// migrations
+	logger.Info("running database migrations...")
+	if err := gormDB.AutoMigrate(
+		&entity.User{},
+		// adicionar as entidades que forem criadas
+	); err != nil {
+		logger.Error("failed to run migrations", "error", err)
+		os.Exit(1)
+	}
+	logger.Info("migrations completed successfully")
+
+	// repositories
+	userRepo := repo.NewUserRepo(gormDB)
+
+	// services
+	userSvc := userservice.NewUserService(userRepo, &cfg.JWT, logger)
+
+	//handlers
+	healthHandler := handler.NewHealthHandler()
+	userHandler := handler.NewUserHandler(userSvc)
+
+	// middlewares
 	contentJsonMiddleware := middleware.JsonMiddleware()
+	jwtMiddleware := middleware.JWTMiddleware(&cfg.JWT)
 
 	srv := server.NewServer(
 		server.WithLogger(logger),
 		server.WithConfig(cfg),
-		server.WithDB(&db),
+		server.WithDB(dbConn),
 		server.WithHealthHandler(healthHandler),
+		server.WithUserHandler(userHandler),
 		server.WithContentJSONMiddleware(contentJsonMiddleware),
+		server.WithJWTMiddleware(jwtMiddleware),
 	)
 	srv.Start(ctx)
 

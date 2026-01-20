@@ -7,6 +7,11 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+type JWTPackage interface {
+	GenerateToken(userID uint, email string, jwtSecret string) (string, error)
+	ValidateToken(tokenString string, jwtSecret string) (*Claims, error)
+}
+
 type Claims struct {
 	UserID uint   `json:"user_id"`
 	Email  string `json:"email"`

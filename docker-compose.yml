@@ -1,0 +1,48 @@
+services:
+
+  crm-services-postgres-docker:
+    image: postgres:17
+    container_name: crm-services-postgres-docker
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-crm_services_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  crm-services-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - SERVER_ADDRESS=${SERVER_ADDRESS:-0.0.0.0:8080}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_ADDRESS=${DB_ADDRESS:-crm-services-postgres-docker}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-crm_services_db}
+      - JWT_SECRET=${JWT_SECRET:-teste}
+    ports:
+      - "8080:8080"
+    depends_on:
+      crm-services-postgres-docker:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+      
+volumes:
+  pgdata:
+    
+networks:
+  app-network:
+    driver: bridge

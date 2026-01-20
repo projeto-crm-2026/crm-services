@@ -8,13 +8,15 @@ import (
 	"gorm.io/gorm"
 )
 
-type Repo interface{}
+type Repo interface {
+	User() UserRepo
+}
 
 type Conn struct {
 	db *gorm.DB
 }
 
-func Connect(dbConfig config.DBConfig) (Repo, error) {
+func Connect(dbConfig config.DBConfig) (*Conn, error) {
 	dns := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable Timezone=America/Sao_Paulo search_path=public",
 		dbConfig.Address, dbConfig.User, dbConfig.Password, dbConfig.Name, dbConfig.Port)
 	db, err := gorm.Open(postgres.Open(dns), &gorm.Config{})
@@ -22,8 +24,9 @@ func Connect(dbConfig config.DBConfig) (Repo, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	conn := new(Conn)
-	conn.db = db
+	return &Conn{db: db}, nil
+}
 
-	return conn, nil
+func (c *Conn) GetDB() *gorm.DB {
+	return c.db
 }

@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/projeto-crm-2026/crm-services/internal/config"
 	"github.com/projeto-crm-2026/crm-services/internal/domain/entity"
 	"github.com/projeto-crm-2026/crm-services/internal/repo"
 	"github.com/projeto-crm-2026/crm-services/pkg/jwt"
 	passwordHashing "github.com/projeto-crm-2026/crm-services/pkg/passwordhashing"
-	"gorm.io/gorm"
 )
 
 type UserService interface {
@@ -35,7 +35,7 @@ func NewUserService(repo repo.UserRepo, jwtConfig *config.JWTConfig, logger *slo
 
 func (s *userService) RegisterUser(ctx context.Context, name, email, password string) (string, *entity.User, error) {
 	existingUser, err := s.repo.GetByEmail(ctx, email)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		s.logger.Error("failed to check existing user", "error", err)
 		return "", nil, err
 	}
@@ -69,7 +69,7 @@ func (s *userService) RegisterUser(ctx context.Context, name, email, password st
 
 func (s *userService) LoginUser(ctx context.Context, email, password string) (string, *entity.User, error) {
 	user, err := s.repo.GetByEmail(ctx, email)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		s.logger.Error("failed to get user by email", "error", err)
 		return "", nil, err
 	}

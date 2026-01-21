@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -12,8 +14,8 @@ type User struct {
 	Name         string         `gorm:"type:text;not null"`
 	Email        string         `gorm:"type:text;not null;unique"`
 	PasswordHash string         `gorm:"type:text;not null"`
-	CreatedAt    int64          `gorm:"autoCreateTime"`
-	UpdatedAt    int64          `gorm:"autoUpdateTime"`
+	CreatedAt    time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt    time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt    gorm.DeletedAt `gorm:"index"`
 }
 

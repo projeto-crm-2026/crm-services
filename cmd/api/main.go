@@ -34,13 +34,15 @@ func main() {
 	cfg := config.LoadConfigs(logger)
 
 	// database
-	dbConn, err := repo.Connect(cfg.DB)
+	dbConn, err := repo.Connect(ctx, cfg.DB)
 	if err != nil {
 		logger.Error("failed to connect to database", "error", err)
 		os.Exit(1)
 	}
+	defer dbConn.Close()
 
 	gormDB := dbConn.GetDB()
+	pgxPool := dbConn.GetPool()
 
 	// migrations
 	logger.Info("running database migrations...")
@@ -54,7 +56,7 @@ func main() {
 	logger.Info("migrations completed successfully")
 
 	// repositories
-	userRepo := repo.NewUserRepo(gormDB)
+	userRepo := repo.NewUserRepo(pgxPool)
 
 	// services
 	userSvc := userservice.NewUserService(userRepo, &cfg.JWT, logger)

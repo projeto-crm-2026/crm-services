@@ -3,8 +3,8 @@ package repo
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/projeto-crm-2026/crm-services/internal/domain/entity"
-	"gorm.io/gorm"
 )
 
 type UserRepo interface {
@@ -13,21 +13,31 @@ type UserRepo interface {
 }
 
 type userRepo struct {
-	db *gorm.DB
+	pool *pgxpool.Pool
 }
 
-func NewUserRepo(db *gorm.DB) UserRepo {
-	return &userRepo{db: db}
+func NewUserRepo(pool *pgxpool.Pool) UserRepo {
+	return &userRepo{pool: pool}
 }
 
 func (r *userRepo) Insert(ctx context.Context, name string, email string, passwordHash string) (*entity.User, error) {
-	user := entity.User{
-		Name:         name,
-		Email:        email,
-		PasswordHash: passwordHash,
-	}
+	query := `
+        INSERT INTO "user" (name, email, password_hash, created_at, updated_at)
+        VALUES ($1, $2, $3, NOW(), NOW())
+        RETURNING id, uuid, name, email, password_hash, created_at, updated_at
+    `
 
-	if err := r.db.WithContext(ctx).Create(&user).Error; err != nil {
+	var user entity.User
+	err := r.pool.QueryRow(ctx, query, name, email, passwordHash).Scan(
+		&user.ID,
+		&user.UUID,
+		&user.Name,
+		&user.Email,
+		&user.PasswordHash,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
 		return nil, err
 	}
 
@@ -35,9 +45,23 @@ func (r *userRepo) Insert(ctx context.Context, name string, email string, passwo
 }
 
 func (r *userRepo) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
-	var user entity.User
+	query := `
+        SELECT id, uuid, name, email, password_hash, created_at, updated_at
+        FROM "user"
+        WHERE email = $1 AND deleted_at IS NULL
+    `
 
-	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
+	var user entity.User
+	err := r.pool.QueryRow(ctx, query, email).Scan(
+		&user.ID,
+		&user.UUID,
+		&user.Name,
+		&user.Email,
+		&user.PasswordHash,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
 		return nil, err
 	}
 

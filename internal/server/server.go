@@ -18,8 +18,12 @@ type Server struct {
 	db                    *repo.Conn
 	healthHandler         *handler.HealthHandler
 	userHandler           *handler.UserHandler
+	chatHandler           *handler.ChatHandler
+	widgetHandler         *handler.WidgetHandler
 	contentJSONMiddleware func(http.Handler) http.Handler
 	jwtMiddleware         func(http.Handler) http.Handler
+	corsMiddleware        func(http.Handler) http.Handler
+	widgetAuthMiddleware  func(http.Handler) http.Handler
 	httpSrv               *http.Server
 }
 
@@ -45,6 +49,14 @@ func WithUserHandler(h *handler.UserHandler) Option {
 	return func(s *Server) { s.userHandler = h }
 }
 
+func WithChatHandler(h *handler.ChatHandler) Option {
+	return func(s *Server) { s.chatHandler = h }
+}
+
+func WithWidgetHandler(h *handler.WidgetHandler) Option {
+	return func(s *Server) { s.widgetHandler = h }
+}
+
 func WithContentJSONMiddleware(mw func(http.Handler) http.Handler) Option {
 	return func(s *Server) {
 		s.contentJSONMiddleware = mw
@@ -57,6 +69,18 @@ func WithJWTMiddleware(mw func(http.Handler) http.Handler) Option {
 	}
 }
 
+func WithCorsMiddleware(mw func(http.Handler) http.Handler) Option {
+	return func(s *Server) {
+		s.corsMiddleware = mw
+	}
+}
+
+func WithWidgetAuthMiddleware(mw func(http.Handler) http.Handler) Option {
+	return func(s *Server) {
+		s.widgetAuthMiddleware = mw
+	}
+}
+
 func NewServer(opts ...Option) *Server {
 	s := &Server{}
 	for _, opt := range opts {
@@ -64,7 +88,7 @@ func NewServer(opts ...Option) *Server {
 	}
 	s.httpSrv = &http.Server{
 		Addr:    s.cfg.Server.Address,
-		Handler: route.New(s.healthHandler, s.userHandler, s.contentJSONMiddleware, s.jwtMiddleware),
+		Handler: route.New(s.healthHandler, s.userHandler, s.chatHandler, s.widgetHandler, s.contentJSONMiddleware, s.jwtMiddleware, s.corsMiddleware, s.widgetAuthMiddleware),
 	}
 
 	return s

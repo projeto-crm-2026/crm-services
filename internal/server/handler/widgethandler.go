@@ -1,0 +1,45 @@
+package handler
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/projeto-crm-2026/crm-services/internal/server/middleware"
+	"github.com/projeto-crm-2026/crm-services/internal/server/model"
+	"github.com/projeto-crm-2026/crm-services/internal/service/widgetservice"
+)
+
+type WidgetHandler struct {
+	service widgetservice.WidgetService
+}
+
+func NewWidgetHandler(service widgetservice.WidgetService) *WidgetHandler {
+	return &WidgetHandler{service: service}
+}
+
+func (h *WidgetHandler) InitWidget(w http.ResponseWriter, r *http.Request) {
+	widgetCtx, ok := middleware.GetWidgetContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req model.InitWidgetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid payload", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	session, err := h.service.InitSession(r.Context(), req.VisitorID, widgetCtx.UserID, widgetCtx.Domain)
+	if err != nil {
+		http.Error(w, "failed to initialize session", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(model.InitWidgetResponse{
+		Token:     session.Token,
+		VisitorID: session.VisitorID,
+	})
+}

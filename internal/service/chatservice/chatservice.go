@@ -14,12 +14,18 @@ type ChatService interface {
 	ListChats(ctx context.Context, ownerUserID uint) ([]entity.Chat, error)
 	GetMessages(ctx context.Context, chatID uint) ([]entity.Message, error)
 	SaveMessage(ctx context.Context, chatID uint, senderID *uint, visitorID, content string) (*entity.Message, error)
+	SetMessageHandler(handler MessageEventHandler)
+}
+
+type MessageEventHandler interface {
+	OnMessageReceived(ctx context.Context, ownerUserID uint, chatID uint, message *entity.Message)
 }
 
 type chatService struct {
-	chatRepo    repo.ChatRepo
-	messageRepo repo.MessageRepo
-	logger      *slog.Logger
+	chatRepo       repo.ChatRepo
+	messageRepo    repo.MessageRepo
+	logger         *slog.Logger
+	messageHandler MessageEventHandler
 }
 
 func NewChatService(chatRepo repo.ChatRepo, messageRepo repo.MessageRepo, logger *slog.Logger) ChatService {
@@ -30,6 +36,10 @@ func NewChatService(chatRepo repo.ChatRepo, messageRepo repo.MessageRepo, logger
 	}
 }
 
+func (s *chatService) SetMessageHandler(handler MessageEventHandler) {
+	s.messageHandler = handler
+}
+
 func (s *chatService) CreateChat(ctx context.Context, origin string, ownerUserID uint, visitorID string) (*entity.Chat, error) {
 	chat, err := s.chatRepo.Insert(ctx, origin, ownerUserID)
 	if err != nil {
@@ -37,10 +47,13 @@ func (s *chatService) CreateChat(ctx context.Context, origin string, ownerUserID
 		return nil, err
 	}
 
-	// add visitor as participant
+	if err := s.chatRepo.AddParticipant(ctx, chat.ID, &ownerUserID, "", entity.ParticipantRoleAgent); err != nil {
+		s.logger.Error("failed to add owner as participant", "error", err)
+	}
+
 	if visitorID != "" {
 		if err := s.chatRepo.AddParticipant(ctx, chat.ID, nil, visitorID, entity.ParticipantRoleVisitor); err != nil {
-			s.logger.Error("failed to add visitor participant", "error", err)
+			s.logger.Error("failed to add visitor as participant", "error", err)
 		}
 	}
 
@@ -82,6 +95,16 @@ func (s *chatService) SaveMessage(ctx context.Context, chatID uint, senderID *ui
 		s.logger.Error("failed to save message", "error", err, "chatID", chatID)
 		return nil, err
 	}
+
+	if s.messageHandler != nil && visitorID != "" && senderID == nil {
+		chat, err := s.chatRepo.GetByID(ctx, chatID)
+		if err == nil {
+			s.logger.Info("triggering webhook for message", "chatID", chatID, "messageID", message.ID)
+			go s.messageHandler.OnMessageReceived(context.Background(), chat.OwnerUserID, chatID, message)
+		}
+	}
+
+	s.logger.Info("message saved", "messageID", message.ID, "chatID", chatID)
 
 	return message, nil
 }

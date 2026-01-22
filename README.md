@@ -22,13 +22,15 @@ crm-services/
 │   │       ├── chat.go             # Entidade Chat
 │   │       ├── chatparticipant.go  # Entidade Participante do Chat
 │   │       ├── message.go          # Entidade Mensagem
-│   │       └── user.go             # Entidade Usuário
+│   │       ├── user.go             # Entidade Usuário
+│   │       └── webhook.go          # Entidade Webhook
 │   ├── repo/
 │   │   ├── apikeyrepo.go           # Repositório de API Keys
 │   │   ├── chatrepo.go             # Repositório de Chats
 │   │   ├── messagerepo.go          # Repositório de Mensagens
 │   │   ├── repo.go                 # Conexão com banco de dados
-│   │   └── userrepo.go             # Repositório de Usuários
+│   │   ├── userrepo.go             # Repositório de Usuários
+│   │   └── webhookrepo.go          # Repositório de Webhooks
 │   ├── server/
 │   │   ├── server.go               # Configuração do servidor HTTP
 │   │   ├── adapters/
@@ -38,6 +40,7 @@ crm-services/
 │   │   │   ├── chathandler.go      # Handler de Chat
 │   │   │   ├── healthhandler.go    # Handler de Health Check
 │   │   │   ├── userhandler.go      # Handler de Usuário
+│   │   │   ├── webhookhandler.go   # Handler de Webhooks
 │   │   │   └── widgethandler.go    # Handler de Widget
 │   │   ├── middleware/
 │   │   │   ├── contentjson.go      # Middleware Content-Type JSON
@@ -48,6 +51,7 @@ crm-services/
 │   │   │   ├── apikey.go           # DTOs de API Key
 │   │   │   ├── chat.go             # DTOs de Chat
 │   │   │   ├── user.go             # DTOs de Usuário
+│   │   │   ├── webhook.go          # DTOs de Webhook
 │   │   │   └── widget.go           # DTOs de Widget
 │   │   ├── route/
 │   │   │   └── routes.go           # Definição de rotas
@@ -61,6 +65,10 @@ crm-services/
 │       │   └── chatservice.go      # Serviço de Chat
 │       ├── userservice/
 │       │   └── userservice.go      # Serviço de Usuário
+│       ├── webhookservice/
+│       │   ├── dispatcher.go       # Dispatcher de eventos
+│       │   ├── events.go           # Definição de eventos
+│       │   └── webhookservice.go   # Serviço de Webhooks
 │       └── widgetservice/
 │           ├── exceptions.go       # Exceções do Widget
 │           └── widgetservice.go    # Serviço de Widget
@@ -216,12 +224,177 @@ make dev
 | GET    | `/chats/{chatID}`          | Obter chat         |
 | GET    | `/chats/{chatID}/messages` | Obter mensagens    |
 
-### WebSocket
+### Webhooks - Outgoing (Autenticado)
 
-| Endpoint                     | Descrição                |
-|------------------------------|--------------------------|
-| `/ws/chat/{chatID}`          | WebSocket para agentes   |
-| `/ws/widget/{chatID}`        | WebSocket para visitantes|
+| Método | Endpoint                      | Descrição                    |
+|--------|-------------------------------|------------------------------|
+| GET    | `/webhooks/events`            | Listar eventos disponíveis   |
+| POST   | `/webhooks`                   | Criar webhook                |
+| GET    | `/webhooks`                   | Listar webhooks              |
+| GET    | `/webhooks/{webhookID}`       | Obter webhook                |
+| PUT    | `/webhooks/{webhookID}`       | Atualizar webhook            |
+| DELETE | `/webhooks/{webhookID}`       | Deletar webhook              |
+| GET    | `/webhooks/{webhookID}/logs`  | Obter logs de envio          |
+
+### Webhooks - Incoming Tokens (Autenticado)
+
+| Método | Endpoint                      | Descrição                    |
+|--------|-------------------------------|------------------------------|
+| POST   | `/webhooks/tokens`            | Criar token de entrada       |
+| GET    | `/webhooks/tokens`            | Listar tokens                |
+| DELETE | `/webhooks/tokens/{tokenID}`  | Deletar token                |
+
+### Webhooks - Incoming (Com X-Webhook-Token)
+
+| Método | Endpoint            | Descrição                    |
+|--------|---------------------|------------------------------|
+| POST   | `/webhook/incoming` | Receber webhook externo      |
+
+## 🔔 Webhooks
+
+O sistema suporta webhooks bidirecionais:
+
+### Outgoing Webhooks (CRM → Seu Servidor)
+
+Configure webhooks para receber notificações quando eventos ocorrerem no CRM.
+
+#### Eventos Disponíveis
+
+| Evento                  | Descrição                           |
+|-------------------------|-------------------------------------|
+| `message.received`      | Mensagem recebida de visitante      |
+| `message.sent`          | Mensagem enviada por agente         |
+| `chat.created`          | Novo chat criado                    |
+| `chat.closed`           | Chat fechado                        |
+| `visitor.connected`     | Visitante conectou ao WebSocket     |
+| `visitor.disconnected`  | Visitante desconectou do WebSocket  |
+
+#### Criar Webhook
+
+```bash
+curl -X POST http://localhost:8080/webhooks \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{
+    "name": "Minha Integração",
+    "url": "https://meu-servidor.com/webhook",
+    "events": ["message.received", "chat.created"]
+  }'
+```
+
+Resposta:
+```json
+{
+  "id": 1,
+  "name": "Minha Integração",
+  "url": "https://meu-servidor.com/webhook",
+  "secret": "whsec_abc123...",
+  "events": ["message.received", "chat.created"],
+  "is_active": true,
+  "fail_count": 0,
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+#### Payload do Webhook
+
+Quando um evento ocorre, o CRM envia um POST para sua URL:
+
+```json
+{
+  "id": "evt_uuid-do-evento",
+  "type": "message.received",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "data": {
+    "chat_id": 1,
+    "message_id": 42,
+    "content": "Olá, preciso de ajuda!",
+    "visitor_id": "visitor-uuid",
+    "type": "text",
+    "timestamp": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+#### Headers do Webhook
+
+| Header               | Descrição                              |
+|----------------------|----------------------------------------|
+| `Content-Type`       | `application/json`                     |
+| `X-Webhook-Signature`| Assinatura HMAC-SHA256 do payload      |
+| `X-Webhook-Event`    | Tipo do evento                         |
+| `X-Webhook-ID`       | ID único do evento                     |
+
+#### Verificando Assinatura
+
+```javascript
+const crypto = require('crypto');
+
+function verifySignature(payload, signature, secret) {
+  const expectedSignature = 'sha256=' + crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+  
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
+}
+```
+
+### Incoming Webhooks (Seu Servidor → CRM)
+
+Envie comandos para o CRM através de webhooks de entrada.
+
+#### Criar Token de Entrada
+
+```bash
+curl -X POST http://localhost:8080/webhooks/tokens \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"name": "Bot de Automação"}'
+```
+
+Resposta:
+```json
+{
+  "id": 1,
+  "token": "whit_abc123...",
+  "name": "Bot de Automação",
+  "is_active": true,
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+#### Ações Disponíveis
+
+| Ação            | Descrição                    |
+|-----------------|------------------------------|
+| `send_message`  | Enviar mensagem no chat      |
+| `close_chat`    | Fechar chat                  |
+
+#### Enviar Mensagem via Webhook
+
+```bash
+curl -X POST http://localhost:8080/webhook/incoming \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Token: whit_abc123..." \
+  -d '{
+    "action": "send_message",
+    "chat_id": 1,
+    "content": "Olá! Esta é uma mensagem automática."
+  }'
+```
+
+Resposta:
+```json
+{
+  "status": "ok"
+}
+```
+
+A mensagem será enviada automaticamente para todos os clientes conectados via WebSocket.
 
 ## 💬 Exemplo de Uso do WebSocket
 
@@ -471,6 +644,22 @@ make test-ui
 
 # Acesse http://localhost:3000/websocket-test.html
 ```
+
+O test suite inclui:
+- Autenticação (Register/Login)
+- Gerenciamento de API Keys
+- Inicialização de Widget
+- Criação de Chat
+- WebSocket (CRM Agent e Widget Client)
+- **Outgoing Webhooks** (criar, listar, logs)
+- **Incoming Webhooks** (tokens e envio de mensagens)
+
+### Testando Webhooks
+
+1. Acesse [webhook.site](https://webhook.site) e copie a URL
+2. Crie um webhook com a URL copiada
+3. Envie mensagens via WebSocket como visitante
+4. Verifique os eventos recebidos no webhook.site
 
 ## 📝 Licença
 

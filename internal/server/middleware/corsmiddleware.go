@@ -12,7 +12,7 @@ func CORSMiddleware() func(http.Handler) http.Handler {
 			}
 
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Widget-Key, X-Visitor-Token")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Widget-Key, X-Visitor-Token, X-Webhook-Token")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Max-Age", "86400")
 

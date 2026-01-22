@@ -4,9 +4,9 @@
   <title>CRM Widget & API Key Test</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; max-width: 1600px; margin: 20px auto; padding: 0 20px; background: #f5f5f5; }
+    body { font-family: Arial, sans-serif; max-width: 1800px; margin: 20px auto; padding: 0 20px; background: #f5f5f5; }
     h1 { text-align: center; color: #333; }
-    .container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
     .panel { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     .panel h2 { margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid; }
     .panel.auth h2 { border-color: #9c27b0; color: #9c27b0; }
@@ -14,9 +14,11 @@
     .panel.widget h2 { border-color: #4caf50; color: #4caf50; }
     .panel.crm h2 { border-color: #2196f3; color: #2196f3; }
     .panel.client h2 { border-color: #e91e63; color: #e91e63; }
+    .panel.webhook h2 { border-color: #00bcd4; color: #00bcd4; }
     .form-group { margin-bottom: 15px; }
     .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-    input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    textarea { resize: vertical; font-family: monospace; }
     button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 5px; margin-bottom: 5px; color: white; }
     button:hover { opacity: 0.9; }
     button:disabled { background: #ccc !important; cursor: not-allowed; }
@@ -26,6 +28,8 @@
     .btn-blue { background: #2196f3; }
     .btn-pink { background: #e91e63; }
     .btn-red { background: #f44336; }
+    .btn-cyan { background: #00bcd4; }
+    .btn-teal { background: #009688; }
     .status { padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; }
     .status.success { background: #d4edda; color: #155724; }
     .status.error { background: #f8d7da; color: #721c24; }
@@ -43,6 +47,9 @@
     .step { background: #e8eaf6; padding: 10px; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid #3f51b5; }
     .step-number { background: #3f51b5; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-right: 8px; }
     hr { border: none; border-top: 1px solid #eee; margin: 20px 0; }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; }
+    .checkbox-group label { display: flex; align-items: center; gap: 5px; font-weight: normal; }
+    .checkbox-group input[type="checkbox"] { width: auto; }
   </style>
 </head>
 <body>
@@ -205,9 +212,106 @@
       </div>
     </div>
 
+    <!-- Webhook Outgoing Panel -->
+    <div class="panel webhook">
+      <h2>6. Outgoing Webhooks</h2>
+      <div class="step">
+        <span class="step-number">Step 6</span>
+        Configure webhooks to receive events
+      </div>
+      
+      <div id="webhook-status" class="status info">Login first to manage webhooks</div>
+      
+      <div class="form-group">
+        <label>Webhook Name</label>
+        <input type="text" id="webhook-name" placeholder="My Integration" value="Test Webhook">
+      </div>
+      <div class="form-group">
+        <label>Webhook URL</label>
+        <input type="text" id="webhook-url" placeholder="https://your-server.com/webhook" value="https://webhook.site/your-uuid">
+      </div>
+      <div class="form-group">
+        <label>Events</label>
+        <div class="checkbox-group" id="webhook-events">
+          <label><input type="checkbox" value="message.received" checked> message.received</label>
+          <label><input type="checkbox" value="message.sent"> message.sent</label>
+          <label><input type="checkbox" value="chat.created" checked> chat.created</label>
+          <label><input type="checkbox" value="chat.closed"> chat.closed</label>
+          <label><input type="checkbox" value="visitor.connected"> visitor.connected</label>
+          <label><input type="checkbox" value="visitor.disconnected"> visitor.disconnected</label>
+        </div>
+      </div>
+      
+      <button class="btn-cyan" onclick="createWebhook()">Create Webhook</button>
+      <button class="btn-cyan" onclick="listWebhooks()">List Webhooks</button>
+      <button class="btn-cyan" onclick="getAvailableEvents()">Get Events</button>
+      
+      <div class="form-group" style="margin-top: 15px;">
+        <label>Created Webhook ID</label>
+        <input type="text" id="webhook-id" readonly>
+      </div>
+      <div class="form-group">
+        <label>Webhook Secret (HMAC)</label>
+        <input type="text" id="webhook-secret" readonly>
+      </div>
+      
+      <button class="btn-teal" onclick="getWebhookLogs()">View Logs</button>
+      <button class="btn-red" onclick="deleteWebhook()">Delete Webhook</button>
+      
+      <div class="data-display" id="webhook-output">Response will appear here...</div>
+    </div>
+
+    <!-- Incoming Webhook Panel -->
+    <div class="panel webhook">
+      <h2>7. Incoming Webhooks</h2>
+      <div class="step">
+        <span class="step-number">Step 7</span>
+        Send messages via webhook
+      </div>
+      
+      <div id="incoming-status" class="status info">Create incoming token first</div>
+      
+      <div class="form-group">
+        <label>Token Name</label>
+        <input type="text" id="incoming-token-name" placeholder="Bot Integration" value="Test Bot">
+      </div>
+      
+      <button class="btn-cyan" onclick="createIncomingToken()">Create Token</button>
+      <button class="btn-cyan" onclick="listIncomingTokens()">List Tokens</button>
+      
+      <div class="form-group" style="margin-top: 15px;">
+        <label>Incoming Token</label>
+        <input type="text" id="incoming-token" readonly placeholder="whit_xxxxx">
+      </div>
+      
+      <hr>
+      
+      <h3>Test Incoming Webhook</h3>
+      
+      <div class="form-group">
+        <label>Action</label>
+        <select id="incoming-action">
+          <option value="send_message">send_message</option>
+          <option value="close_chat">close_chat</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Chat ID</label>
+        <input type="text" id="incoming-chat-id" placeholder="Chat ID to send message">
+      </div>
+      <div class="form-group">
+        <label>Message Content</label>
+        <textarea id="incoming-content" rows="3" placeholder="Hello from webhook!">Olá! Esta é uma mensagem automática do bot.</textarea>
+      </div>
+      
+      <button class="btn-teal" onclick="sendIncomingWebhook()">Send Webhook</button>
+      
+      <div class="data-display" id="incoming-output">Response will appear here...</div>
+    </div>
+
     <!-- Quick Test Panel -->
     <div class="panel" style="grid-column: span 1;">
-      <h2>6. Quick Test Flow</h2>
+      <h2>8. Quick Test Flow</h2>
       <div class="step">
         <span class="step-number">Auto</span>
         Run complete flow automatically
@@ -215,6 +319,10 @@
       
       <button class="btn-purple" onclick="runFullTest()" style="width: 100%; padding: 15px; font-size: 16px;">
         Run Complete Test Flow
+      </button>
+      
+      <button class="btn-cyan" onclick="runWebhookTest()" style="width: 100%; padding: 15px; font-size: 16px; margin-top: 10px;">
+        Run Webhook Test Flow
       </button>
       
       <hr>
@@ -228,6 +336,8 @@
         <li>Connect CRM Agent WebSocket</li>
         <li>Connect Widget Client WebSocket</li>
         <li>Send test messages both ways</li>
+        <li>Create Webhook & Token</li>
+        <li>Test Incoming Webhook</li>
       </ol>
       
       <div id="test-log" class="data-display" style="height: 200px;"></div>
@@ -433,6 +543,7 @@
           document.getElementById('widget-chat-id').value = data.id;
           document.getElementById('crm-chat-id').value = data.id;
           document.getElementById('client-chat-id').value = data.id;
+          document.getElementById('incoming-chat-id').value = data.id;
           log(`Chat created with ID: ${data.id}`);
         } else {
           throw new Error(data.error || 'Failed to create chat');
@@ -458,6 +569,7 @@
           setOutput('crm-output', data);
           if (data.length > 0) {
             document.getElementById('crm-chat-id').value = data[0].id;
+            document.getElementById('incoming-chat-id').value = data[0].id;
           }
           log(`Listed ${data.length} chats`);
         } else {
@@ -585,6 +697,236 @@
       container.scrollTop = container.scrollHeight;
     }
 
+    // ===== Webhook Functions =====
+    function getSelectedEvents() {
+      const checkboxes = document.querySelectorAll('#webhook-events input[type="checkbox"]:checked');
+      return Array.from(checkboxes).map(cb => cb.value);
+    }
+
+    async function createWebhook() {
+      try {
+        const events = getSelectedEvents();
+        if (events.length === 0) {
+          throw new Error('Select at least one event');
+        }
+
+        const res = await fetch(`${API_BASE}/webhooks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: document.getElementById('webhook-name').value,
+            url: document.getElementById('webhook-url').value,
+            events: events
+          })
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+          setStatus('webhook-status', 'Webhook created!', 'success');
+          setOutput('webhook-output', data);
+          document.getElementById('webhook-id').value = data.id;
+          document.getElementById('webhook-secret').value = data.secret;
+          log(`Webhook created with ID: ${data.id}, secret: ${data.secret}`);
+        } else {
+          throw new Error(data.error || 'Failed to create webhook');
+        }
+      } catch (err) {
+        setStatus('webhook-status', `${err.message}`, 'error');
+        setOutput('webhook-output', err.message);
+        log(`Create webhook failed: ${err.message}`);
+      }
+    }
+
+    async function listWebhooks() {
+      try {
+        const res = await fetch(`${API_BASE}/webhooks`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+          setStatus('webhook-status', `Found ${data.length} webhook(s)`, 'success');
+          setOutput('webhook-output', data);
+          if (data.length > 0) {
+            document.getElementById('webhook-id').value = data[0].id;
+          }
+          log(`Listed ${data.length} webhooks`);
+        } else {
+          throw new Error('Failed to list webhooks');
+        }
+      } catch (err) {
+        setStatus('webhook-status', `${err.message}`, 'error');
+        log(`List webhooks failed: ${err.message}`);
+      }
+    }
+
+    async function getAvailableEvents() {
+      try {
+        const res = await fetch(`${API_BASE}/webhooks/events`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+          setStatus('webhook-status', 'Events loaded', 'success');
+          setOutput('webhook-output', data);
+          log(`Available events: ${data.join(', ')}`);
+        } else {
+          throw new Error('Failed to get events');
+        }
+      } catch (err) {
+        setStatus('webhook-status', `${err.message}`, 'error');
+        log(`Get events failed: ${err.message}`);
+      }
+    }
+
+    async function getWebhookLogs() {
+      try {
+        const webhookId = document.getElementById('webhook-id').value;
+        if (!webhookId) {
+          throw new Error('Enter webhook ID');
+        }
+
+        const res = await fetch(`${API_BASE}/webhooks/${webhookId}/logs?limit=10`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+          setStatus('webhook-status', `Found ${data.length} log(s)`, 'success');
+          setOutput('webhook-output', data);
+          log(`Listed ${data.length} webhook logs`);
+        } else {
+          throw new Error('Failed to get logs');
+        }
+      } catch (err) {
+        setStatus('webhook-status', `${err.message}`, 'error');
+        log(`Get logs failed: ${err.message}`);
+      }
+    }
+
+    async function deleteWebhook() {
+      try {
+        const webhookId = document.getElementById('webhook-id').value;
+        if (!webhookId) {
+          throw new Error('Enter webhook ID');
+        }
+
+        const res = await fetch(`${API_BASE}/webhooks/${webhookId}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        
+        if (res.ok) {
+          setStatus('webhook-status', 'Webhook deleted!', 'success');
+          setOutput('webhook-output', 'Webhook deleted successfully');
+          document.getElementById('webhook-id').value = '';
+          document.getElementById('webhook-secret').value = '';
+          log(`Webhook ${webhookId} deleted`);
+        } else {
+          throw new Error('Failed to delete webhook');
+        }
+      } catch (err) {
+        setStatus('webhook-status', `${err.message}`, 'error');
+        log(`Delete webhook failed: ${err.message}`);
+      }
+    }
+
+    // ===== Incoming Webhook Functions =====
+    async function createIncomingToken() {
+      try {
+        const res = await fetch(`${API_BASE}/webhooks/tokens`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: document.getElementById('incoming-token-name').value
+          })
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+          setStatus('incoming-status', 'Token created!', 'success');
+          setOutput('incoming-output', data);
+          document.getElementById('incoming-token').value = data.token;
+          log(`Incoming token created: ${data.token}`);
+        } else {
+          throw new Error(data.error || 'Failed to create token');
+        }
+      } catch (err) {
+        setStatus('incoming-status', `${err.message}`, 'error');
+        setOutput('incoming-output', err.message);
+        log(`Create token failed: ${err.message}`);
+      }
+    }
+
+    async function listIncomingTokens() {
+      try {
+        const res = await fetch(`${API_BASE}/webhooks/tokens`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+          setStatus('incoming-status', `Found ${data.length} token(s)`, 'success');
+          setOutput('incoming-output', data);
+          log(`Listed ${data.length} incoming tokens`);
+        } else {
+          throw new Error('Failed to list tokens');
+        }
+      } catch (err) {
+        setStatus('incoming-status', `${err.message}`, 'error');
+        log(`List tokens failed: ${err.message}`);
+      }
+    }
+
+    async function sendIncomingWebhook() {
+      try {
+        const token = document.getElementById('incoming-token').value;
+        const chatId = document.getElementById('incoming-chat-id').value;
+        const action = document.getElementById('incoming-action').value;
+        const content = document.getElementById('incoming-content').value;
+
+        if (!token) {
+          throw new Error('Create incoming token first');
+        }
+        if (!chatId) {
+          throw new Error('Enter chat ID');
+        }
+
+        const res = await fetch(`${API_BASE}/webhook/incoming`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Webhook-Token': token
+          },
+          body: JSON.stringify({
+            action: action,
+            chat_id: parseInt(chatId),
+            content: content
+          })
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+          setStatus('incoming-status', 'Webhook sent!', 'success');
+          setOutput('incoming-output', data);
+          log(`Incoming webhook sent: ${action} to chat ${chatId}`);
+        } else {
+          throw new Error(data.error || JSON.stringify(data) || 'Failed to send webhook');
+        }
+      } catch (err) {
+        setStatus('incoming-status', `${err.message}`, 'error');
+        setOutput('incoming-output', err.message);
+        log(`Send webhook failed: ${err.message}`);
+      }
+    }
+
     // ===== Full Test Flow =====
     async function runFullTest() {
       log('Starting full test flow...');
@@ -640,6 +982,65 @@
         }
         
         log('Full test flow completed!');
+        
+      } catch (err) {
+        log(`Test failed: ${err.message}`);
+      }
+    }
+
+    // ===== Webhook Test Flow =====
+    async function runWebhookTest() {
+      log('Starting webhook test flow...');
+      document.getElementById('test-log').textContent = '';
+      
+      try {
+        // Step 1: Login (assumes user exists)
+        log('Step 1: Logging in...');
+        await login();
+        await new Promise(r => setTimeout(r, 500));
+        
+        // Step 2: Create Outgoing Webhook
+        log('Step 2: Creating outgoing webhook...');
+        await createWebhook();
+        await new Promise(r => setTimeout(r, 500));
+        
+        // Step 3: Create Incoming Token
+        log('Step 3: Creating incoming token...');
+        await createIncomingToken();
+        await new Promise(r => setTimeout(r, 500));
+        
+        // Step 4: Create API Key & Widget
+        log('Step 4: Creating API Key...');
+        await createAPIKey();
+        await new Promise(r => setTimeout(r, 500));
+        
+        log('Step 5: Initializing Widget...');
+        await initWidget();
+        await new Promise(r => setTimeout(r, 500));
+        
+        log('Step 6: Creating Chat...');
+        await createWidgetChat();
+        await new Promise(r => setTimeout(r, 500));
+        
+        // Step 5: Connect WebSockets
+        log('Step 7: Connecting WebSockets...');
+        connectCRM();
+        connectClient();
+        await new Promise(r => setTimeout(r, 1000));
+        
+        // Step 6: Send message via incoming webhook
+        log('Step 8: Sending message via incoming webhook...');
+        await sendIncomingWebhook();
+        await new Promise(r => setTimeout(r, 500));
+        
+        // Step 7: Check webhook logs
+        log('Step 9: Checking webhook logs...');
+        await getWebhookLogs();
+        
+        log('Webhook test flow completed!');
+        log('');
+        log('Check your webhook URL (e.g., webhook.site) to see outgoing events!');
+        log('Messages sent via incoming webhook should appear in the chat!');
         
       } catch (err) {
         log(`Test failed: ${err.message}`);

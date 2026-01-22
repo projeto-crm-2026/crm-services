@@ -17,6 +17,7 @@ import (
 	"github.com/projeto-crm-2026/crm-services/internal/server/websocket"
 	"github.com/projeto-crm-2026/crm-services/internal/service/chatservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/userservice"
+	"github.com/projeto-crm-2026/crm-services/internal/service/webhookservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/widgetservice"
 )
 
@@ -56,6 +57,9 @@ func main() {
 		&entity.Message{},
 		&entity.ChatParticipant{},
 		&entity.APIKey{},
+		&entity.Webhook{},
+		&entity.WebhookLog{},
+		&entity.IncomingWebhookToken{},
 		// adicionar as entidades que forem criadas
 	); err != nil {
 		logger.Error("failed to run migrations", "error", err)
@@ -68,21 +72,26 @@ func main() {
 	chatRepo := repo.NewChatRepo(pgxPool)
 	messageRepo := repo.NewMessageRepo(pgxPool)
 	apiKeyRepo := repo.NewAPIKeyRepo(pgxPool)
-
-	// services
-	userSvc := userservice.NewUserService(userRepo, &cfg.JWT, logger)
-	chatSvc := chatservice.NewChatService(chatRepo, messageRepo, logger)
-	widgetSvc := widgetservice.NewWidgetService(apiKeyRepo, &cfg.JWT, logger)
+	webhookRepo := repo.NewWebhookRepo(pgxPool)
 
 	// websocket hub
 	hub := websocket.NewHub()
 	go hub.Run()
+
+	// services
+	userSvc := userservice.NewUserService(userRepo, &cfg.JWT, logger)
+	widgetSvc := widgetservice.NewWidgetService(apiKeyRepo, &cfg.JWT, logger)
+	chatSvc := chatservice.NewChatService(chatRepo, messageRepo, logger)
+	webhookSvc := webhookservice.NewWebhookService(webhookRepo, chatSvc, hub, logger)
+
+	chatSvc.SetMessageHandler(webhookSvc)
 
 	// handlers
 	healthHandler := handler.NewHealthHandler()
 	userHandler := handler.NewUserHandler(userSvc)
 	chatHandler := handler.NewChatHandler(hub, chatSvc)
 	widgetHandler := handler.NewWidgetHandler(widgetSvc)
+	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 
 	// adapters
 	widgetAdapter := adapters.NewWidgetValidator(widgetSvc)
@@ -101,6 +110,7 @@ func main() {
 		server.WithUserHandler(userHandler),
 		server.WithChatHandler(chatHandler),
 		server.WithWidgetHandler(widgetHandler),
+		server.WithWebhookHandler(webhookHandler),
 		server.WithContentJSONMiddleware(contentJsonMiddleware),
 		server.WithJWTMiddleware(jwtMiddleware),
 		server.WithCorsMiddleware(corsMiddleware),

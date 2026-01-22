@@ -26,6 +26,7 @@ func New(
 		r.Use(contentJSONMiddleware)
 		r.Post("/register", userHandler.Register)
 		r.Post("/login", userHandler.Login)
+		r.Post("/logout", userHandler.Logout)
 	})
 
 	r.Group(func(r chi.Router) {

@@ -16,6 +16,7 @@ type WebhookHandler struct {
 	service webhookservice.WebhookService
 }
 
+// NewWebhookHandler returns a WebhookHandler initialized with the provided webhook service.
 func NewWebhookHandler(service webhookservice.WebhookService) *WebhookHandler {
 	return &WebhookHandler{service: service}
 }
@@ -360,6 +361,8 @@ func (h *WebhookHandler) HandleIncomingWebhook(w http.ResponseWriter, r *http.Re
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
+// mapWebhookError maps known webhookservice errors to an HTTP status code and a client-facing message.
+// For unmapped errors it returns HTTP 500 and the error's message.
 func mapWebhookError(err error) (int, string) {
 	errorMap := map[error]struct {
 		code    int

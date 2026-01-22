@@ -27,6 +27,9 @@ type dispatchJob struct {
 	event   *WebhookEvent
 }
 
+// NewDispatcher creates a Dispatcher that manages and dispatches webhook events for the given repository.
+// It configures an HTTP client with a 10-second timeout, creates a buffered event channel with capacity 1000,
+// assigns the provided logger and repo, starts five worker goroutines, and returns the initialized Dispatcher.
 func NewDispatcher(repo repo.WebhookRepo, logger *slog.Logger) *Dispatcher {
 	d := &Dispatcher{
 		repo: repo,

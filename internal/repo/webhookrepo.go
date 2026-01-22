@@ -36,6 +36,8 @@ type webhookRepo struct {
 	pool *pgxpool.Pool
 }
 
+// NewWebhookRepo creates a WebhookRepo backed by the provided pgxpool.Pool.
+// The pool must be non-nil.
 func NewWebhookRepo(pool *pgxpool.Pool) WebhookRepo {
 	return &webhookRepo{pool: pool}
 }

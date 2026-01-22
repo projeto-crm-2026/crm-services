@@ -21,6 +21,11 @@ import (
 	"github.com/projeto-crm-2026/crm-services/internal/service/widgetservice"
 )
 
+// main is the program entry point.
+// It initializes the logger and a cancellable application context with signal-based graceful shutdown,
+// loads configuration, connects to the database and runs schema migrations (exiting with status 1 on failure),
+// constructs repositories, a websocket hub, services (user, widget, chat, webhook), HTTP handlers, adapters and middlewares,
+// builds the server with those components, starts it, and ensures the database connection is closed and the context canceled on shutdown.
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 

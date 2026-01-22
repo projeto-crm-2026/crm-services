@@ -7,6 +7,7 @@ import (
 	"github.com/projeto-crm-2026/crm-services/internal/server/handler"
 )
 
+// (global CORS, JSON content enforcement, JWT protection, and widget authentication).
 func New(
 	healthHandler *handler.HealthHandler,
 	userHandler *handler.UserHandler,

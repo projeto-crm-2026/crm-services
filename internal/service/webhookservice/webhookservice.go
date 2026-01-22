@@ -56,6 +56,9 @@ type webhookService struct {
 	logger      *slog.Logger
 }
 
+// NewWebhookService creates a WebhookService backed by the provided webhook repository,
+// chat service, websocket hub, and logger. It constructs an internal Dispatcher and
+// returns the concrete service implementation.
 func NewWebhookService(
 	webhookRepo repo.WebhookRepo,
 	chatService chatservice.ChatService,

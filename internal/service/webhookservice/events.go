@@ -14,6 +14,7 @@ type WebhookEvent struct {
 	Data      interface{}             `json:"data"`
 }
 
+// the provided event type, and the given payload as Data.
 func NewWebhookEvent(eventType entity.WebhookEventType, data interface{}) *WebhookEvent {
 	return &WebhookEvent{
 		ID:        uuid.New().String(),

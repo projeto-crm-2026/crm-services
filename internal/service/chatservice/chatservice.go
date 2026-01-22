@@ -28,6 +28,8 @@ type chatService struct {
 	messageHandler MessageEventHandler
 }
 
+// NewChatService creates a ChatService implementation using the provided chat and message repositories and logger.
+// The returned service has no message handler registered initially.
 func NewChatService(chatRepo repo.ChatRepo, messageRepo repo.MessageRepo, logger *slog.Logger) ChatService {
 	return &chatService{
 		chatRepo:    chatRepo,

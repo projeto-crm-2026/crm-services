@@ -64,7 +64,6 @@ func (h *ChatHandler) CreateWidgetChat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid payload", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
 
 	if req.VisitorID == "" {
 		http.Error(w, "visitor_id is required", http.StatusBadRequest)
@@ -98,7 +97,6 @@ func (h *ChatHandler) CreateChat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid payload", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
 
 	chat, err := h.service.CreateChat(r.Context(), req.Origin, claims.UserID, req.VisitorID)
 	if err != nil {

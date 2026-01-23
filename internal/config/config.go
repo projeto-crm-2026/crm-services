@@ -20,6 +20,7 @@ func LoadConfigs(logger *slog.Logger) *Config {
 	config.DB.Port = getEnv(logger, "DB_PORT")
 	config.DB.Name = getEnv(logger, "DB_NAME")
 	config.JWT.JWTSecret = getEnv(logger, "JWT_SECRET")
+	config.Crypto.AESKey = getEnv(logger, "CRYPTO_AES_KEY")
 
 	return &config
 }

@@ -26,8 +26,8 @@ type Webhook struct {
 	UserID     uint      `gorm:"not null;index"`
 	Name       string    `gorm:"type:text;not null"`
 	URL        string    `gorm:"type:text;not null"`
-	Secret     string    `gorm:"type:text;not null"` // sign HMAC
-	Events     string    `gorm:"type:text;not null"` // JSON de eventos
+	Secret     string    `gorm:"type:text;not null"`  // encrypted secret
+	Events     string    `gorm:"type:jsonb;not null"` // JSONB events
 	IsActive   bool      `gorm:"default:true"`
 	LastUsedAt *time.Time
 	FailCount  int            `gorm:"default:0"`

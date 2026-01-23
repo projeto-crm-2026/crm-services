@@ -13,11 +13,13 @@ import (
 
 	"github.com/projeto-crm-2026/crm-services/internal/domain/entity"
 	"github.com/projeto-crm-2026/crm-services/internal/repo"
+	"github.com/projeto-crm-2026/crm-services/pkg/crypto"
 )
 
 type Dispatcher struct {
 	repo       repo.WebhookRepo
 	httpClient *http.Client
+	aesKey     string
 	logger     *slog.Logger
 	eventChan  chan *dispatchJob
 }
@@ -27,13 +29,14 @@ type dispatchJob struct {
 	event   *WebhookEvent
 }
 
-func NewDispatcher(repo repo.WebhookRepo, logger *slog.Logger) *Dispatcher {
+func NewDispatcher(repo repo.WebhookRepo, logger *slog.Logger, aesKey string) *Dispatcher {
 	d := &Dispatcher{
 		repo: repo,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 		logger:    logger,
+		aesKey:    aesKey,
 		eventChan: make(chan *dispatchJob, 1000),
 	}
 
@@ -61,9 +64,16 @@ func (d *Dispatcher) Dispatch(ctx context.Context, userID uint, event *WebhookEv
 
 	for _, webhook := range webhooks {
 		w := webhook // para goroutine
-		d.eventChan <- &dispatchJob{
+		select {
+		case d.eventChan <- &dispatchJob{
 			webhook: &w,
 			event:   event,
+		}:
+		case <-ctx.Done():
+			d.logger.Warn("dispatch canceled", "error", ctx.Err(), "userID", userID)
+			return
+		default:
+			d.logger.Warn("webhook dispatch queue full", "webhookID", w.ID, "userID", userID)
 		}
 	}
 }
@@ -77,8 +87,14 @@ func (d *Dispatcher) sendWebhook(ctx context.Context, webhook *entity.Webhook, e
 		return
 	}
 
+	plainSecret, err := crypto.Decrypt(webhook.Secret, d.aesKey)
+	if err != nil {
+		d.logger.Error("failed to decrypt webhook secret", "error", err, "webhookID", webhook.ID)
+		return
+	}
+
 	// assinatura HMAC
-	signature := d.sign(payload, webhook.Secret)
+	signature := d.sign(payload, plainSecret)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhook.URL, bytes.NewReader(payload))
 	if err != nil {
@@ -104,20 +120,28 @@ func (d *Dispatcher) sendWebhook(ctx context.Context, webhook *entity.Webhook, e
 
 	if err != nil {
 		log.Error = err.Error()
-		d.repo.IncrementFailCount(ctx, webhook.ID)
+		if incErr := d.repo.IncrementFailCount(ctx, webhook.ID); incErr != nil {
+			d.logger.Error("failed to increment webhook fail count", "error", incErr, "webhookID", webhook.ID)
+		}
 		d.logger.Error("webhook request failed", "error", err, "webhookID", webhook.ID, "url", webhook.URL)
 	} else {
 		defer resp.Body.Close()
+		log.ResponseCode = resp.StatusCode
+
 		buf := make([]byte, 1024)
 		n, _ := resp.Body.Read(buf)
 
 		log.ResponseBody = string(buf[:n])
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			d.repo.ResetFailCount(ctx, webhook.ID)
+			if resetErr := d.repo.ResetFailCount(ctx, webhook.ID); resetErr != nil {
+				d.logger.Error("failed to reset webhook fail count", "error", resetErr, "webhookID", webhook.ID)
+			}
 			d.logger.Info("webhook sent successfully", "webhookID", webhook.ID, "status", resp.StatusCode)
 		} else {
-			d.repo.IncrementFailCount(ctx, webhook.ID)
+			if incErr := d.repo.IncrementFailCount(ctx, webhook.ID); incErr != nil {
+				d.logger.Error("failed to increment webhook fail count", "error", incErr, "webhookID", webhook.ID)
+			}
 			d.logger.Warn("webhook returned error", "webhookID", webhook.ID, "status", resp.StatusCode)
 		}
 	}

@@ -120,7 +120,7 @@ func (r *webhookRepo) GetActiveByUserAndEvent(ctx context.Context, userID uint, 
           AND is_active = true 
           AND deleted_at IS NULL
           AND fail_count < 10
-          AND events LIKE '%' || $2 || '%'
+          AND events @> to_jsonb(ARRAY[$2]::text[])
         ORDER BY created_at DESC
     `
 

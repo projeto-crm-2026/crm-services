@@ -65,6 +65,11 @@ func main() {
 		logger.Error("failed to run migrations", "error", err)
 		os.Exit(1)
 	}
+
+	if err := repo.RunCustomMigrations(gormDB); err != nil {
+		logger.Error("failed to run custom migrations", "error", err)
+		os.Exit(1)
+	}
 	logger.Info("migrations completed successfully")
 
 	// repositories
@@ -82,7 +87,7 @@ func main() {
 	userSvc := userservice.NewUserService(userRepo, &cfg.JWT, logger)
 	widgetSvc := widgetservice.NewWidgetService(apiKeyRepo, &cfg.JWT, logger)
 	chatSvc := chatservice.NewChatService(chatRepo, messageRepo, logger)
-	webhookSvc := webhookservice.NewWebhookService(webhookRepo, chatSvc, hub, logger)
+	webhookSvc := webhookservice.NewWebhookService(webhookRepo, chatSvc, hub, cfg.Crypto.AESKey, logger)
 
 	chatSvc.SetMessageHandler(webhookSvc)
 

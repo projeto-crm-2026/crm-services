@@ -34,28 +34,30 @@ func (h *WebhookHandler) CreateWebhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, constant.InvalidPayload, http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
 
 	if req.URL == "" || len(req.Events) == 0 {
 		http.Error(w, constant.URLAndEventsRequired, http.StatusBadRequest)
 		return
 	}
 
-	webhook, err := h.service.CreateWebhook(r.Context(), claims.UserID, req.Name, req.URL, req.Events)
+	webhook, secret, err := h.service.CreateWebhook(r.Context(), claims.UserID, req.Name, req.URL, req.Events)
 	if err != nil {
 		http.Error(w, constant.FailedToCreateWebhook, http.StatusInternalServerError)
 		return
 	}
 
 	var events []string
-	json.Unmarshal([]byte(webhook.Events), &events)
+	if err := json.Unmarshal([]byte(webhook.Events), &events); err != nil {
+		http.Error(w, constant.FailedToParseWebhookEvents, http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(model.WebhookResponse{
 		ID:        webhook.ID,
 		Name:      webhook.Name,
 		URL:       webhook.URL,
-		Secret:    webhook.Secret, // apenas na criação
+		Secret:    secret, // apenas na criação
 		Events:    events,
 		IsActive:  webhook.IsActive,
 		FailCount: webhook.FailCount,
@@ -79,7 +81,10 @@ func (h *WebhookHandler) ListWebhooks(w http.ResponseWriter, r *http.Request) {
 	response := make([]model.WebhookResponse, len(webhooks))
 	for i, wh := range webhooks {
 		var events []string
-		json.Unmarshal([]byte(wh.Events), &events)
+		if err := json.Unmarshal([]byte(wh.Events), &events); err != nil {
+			http.Error(w, constant.FailedToParseWebhookEvents, http.StatusInternalServerError)
+			return
+		}
 
 		var lastUsed *string
 		if wh.LastUsedAt != nil {
@@ -111,7 +116,7 @@ func (h *WebhookHandler) GetWebhook(w http.ResponseWriter, r *http.Request) {
 
 	webhookID, err := strconv.ParseUint(chi.URLParam(r, "webhookID"), 10, 32)
 	if err != nil {
-		http.Error(w, constant.InvalidToken, http.StatusBadRequest)
+		http.Error(w, constant.InvalidWebhookId, http.StatusBadRequest)
 		return
 	}
 
@@ -122,7 +127,10 @@ func (h *WebhookHandler) GetWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var events []string
-	json.Unmarshal([]byte(webhook.Events), &events)
+	if err := json.Unmarshal([]byte(webhook.Events), &events); err != nil {
+		http.Error(w, constant.FailedToParseWebhookEvents, http.StatusInternalServerError)
+		return
+	}
 
 	var lastUsed *string
 	if webhook.LastUsedAt != nil {
@@ -160,7 +168,6 @@ func (h *WebhookHandler) UpdateWebhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, constant.InvalidPayload, http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
 
 	err = h.service.UpdateWebhook(r.Context(), claims.UserID, uint(webhookID), req.Name, req.URL, req.Events, req.IsActive)
 	if err != nil {
@@ -251,7 +258,6 @@ func (h *WebhookHandler) CreateIncomingToken(w http.ResponseWriter, r *http.Requ
 		http.Error(w, constant.InvalidPayload, http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
 
 	token, err := h.service.CreateIncomingToken(r.Context(), claims.UserID, req.Name)
 	if err != nil {
@@ -341,7 +347,6 @@ func (h *WebhookHandler) HandleIncomingWebhook(w http.ResponseWriter, r *http.Re
 		http.Error(w, constant.InvalidPayload, http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
 
 	payload := &webhookservice.IncomingWebhookPayload{
 		Action:  req.Action,

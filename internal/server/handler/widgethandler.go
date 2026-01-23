@@ -29,7 +29,6 @@ func (h *WidgetHandler) InitWidget(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid payload", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
 
 	session, err := h.service.InitSession(r.Context(), req.VisitorID, widgetCtx.UserID, widgetCtx.Domain)
 	if err != nil {

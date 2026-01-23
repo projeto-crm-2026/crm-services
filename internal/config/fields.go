@@ -4,6 +4,7 @@ type Config struct {
 	DB     DBConfig
 	Server ServerConfig
 	JWT    JWTConfig
+	Crypto CryptoConfig
 }
 
 type DBConfig struct {
@@ -20,4 +21,8 @@ type ServerConfig struct {
 
 type JWTConfig struct {
 	JWTSecret string
+}
+
+type CryptoConfig struct {
+	AESKey string // 32bytes
 }

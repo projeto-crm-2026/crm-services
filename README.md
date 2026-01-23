@@ -324,6 +324,8 @@ Quando um evento ocorre, o CRM envia um POST para sua URL:
 | `X-Webhook-Signature`| Assinatura HMAC-SHA256 do payload      |
 | `X-Webhook-Event`    | Tipo do evento                         |
 | `X-Webhook-ID`       | ID único do evento                     |
+| `X-Webhook-Timestamp`| Timestamp RFC3339 do evento            |
+
 
 #### Verificando Assinatura
 
@@ -379,7 +381,7 @@ Resposta:
 ```bash
 curl -X POST http://localhost:8080/webhook/incoming \
   -H "Content-Type: application/json" \
-  -H "X-Webhook-Token: whit_abc123..." \
+  -H "X-Webhook-Token: ${WEBHOOK_TOKEN}" \
   -d '{
     "action": "send_message",
     "chat_id": 1,

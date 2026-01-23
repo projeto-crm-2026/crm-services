@@ -1,57 +1,289 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>CRM Widget & API Key Test</title>
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; max-width: 1800px; margin: 20px auto; padding: 0 20px; background: #f5f5f5; }
-    h1 { text-align: center; color: #333; }
-    .container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-    .panel { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .panel h2 { margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid; }
-    .panel.auth h2 { border-color: #9c27b0; color: #9c27b0; }
-    .panel.apikey h2 { border-color: #ff9800; color: #ff9800; }
-    .panel.widget h2 { border-color: #4caf50; color: #4caf50; }
-    .panel.crm h2 { border-color: #2196f3; color: #2196f3; }
-    .panel.client h2 { border-color: #e91e63; color: #e91e63; }
-    .panel.webhook h2 { border-color: #00bcd4; color: #00bcd4; }
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-    input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
-    textarea { resize: vertical; font-family: monospace; }
-    button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 5px; margin-bottom: 5px; color: white; }
-    button:hover { opacity: 0.9; }
-    button:disabled { background: #ccc !important; cursor: not-allowed; }
-    .btn-purple { background: #9c27b0; }
-    .btn-orange { background: #ff9800; }
-    .btn-green { background: #4caf50; }
-    .btn-blue { background: #2196f3; }
-    .btn-pink { background: #e91e63; }
-    .btn-red { background: #f44336; }
-    .btn-cyan { background: #00bcd4; }
-    .btn-teal { background: #009688; }
-    .status { padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; }
-    .status.success { background: #d4edda; color: #155724; }
-    .status.error { background: #f8d7da; color: #721c24; }
-    .status.info { background: #cce5ff; color: #004085; }
-    .status.warning { background: #fff3cd; color: #856404; }
-    .output { background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
-    .messages { border: 1px solid #ddd; border-radius: 4px; height: 250px; overflow-y: auto; padding: 10px; background: white; margin-bottom: 10px; }
-    .message { margin: 5px 0; padding: 8px 12px; border-radius: 15px; max-width: 80%; }
-    .message.sent { background: #e3f2fd; margin-left: auto; text-align: right; }
-    .message.received { background: #f5f5f5; }
-    .message .meta { font-size: 10px; color: #999; margin-top: 3px; }
-    .input-row { display: flex; gap: 10px; }
-    .input-row input { flex: 1; }
-    .data-display { background: #263238; color: #aed581; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px; margin-top: 10px; max-height: 150px; overflow-y: auto; }
-    .step { background: #e8eaf6; padding: 10px; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid #3f51b5; }
-    .step-number { background: #3f51b5; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-right: 8px; }
-    hr { border: none; border-top: 1px solid #eee; margin: 20px 0; }
-    .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; }
-    .checkbox-group label { display: flex; align-items: center; gap: 5px; font-weight: normal; }
-    .checkbox-group input[type="checkbox"] { width: auto; }
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1800px;
+      margin: 20px auto;
+      padding: 0 20px;
+      background: #f5f5f5;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .panel {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .panel h2 {
+      margin-top: 0;
+      padding-bottom: 10px;
+      border-bottom: 2px solid;
+    }
+
+    .panel.auth h2 {
+      border-color: #9c27b0;
+      color: #9c27b0;
+    }
+
+    .panel.apikey h2 {
+      border-color: #ff9800;
+      color: #ff9800;
+    }
+
+    .panel.widget h2 {
+      border-color: #4caf50;
+      color: #4caf50;
+    }
+
+    .panel.crm h2 {
+      border-color: #2196f3;
+      color: #2196f3;
+    }
+
+    .panel.client h2 {
+      border-color: #e91e63;
+      color: #e91e63;
+    }
+
+    .panel.webhook h2 {
+      border-color: #00bcd4;
+      color: #00bcd4;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    textarea {
+      resize: vertical;
+      font-family: monospace;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 5px;
+      margin-bottom: 5px;
+      color: white;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    button:disabled {
+      background: #ccc !important;
+      cursor: not-allowed;
+    }
+
+    .btn-purple {
+      background: #9c27b0;
+    }
+
+    .btn-orange {
+      background: #ff9800;
+    }
+
+    .btn-green {
+      background: #4caf50;
+    }
+
+    .btn-blue {
+      background: #2196f3;
+    }
+
+    .btn-pink {
+      background: #e91e63;
+    }
+
+    .btn-red {
+      background: #f44336;
+    }
+
+    .btn-cyan {
+      background: #00bcd4;
+    }
+
+    .btn-teal {
+      background: #009688;
+    }
+
+    .status {
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      font-size: 13px;
+    }
+
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .status.info {
+      background: #cce5ff;
+      color: #004085;
+    }
+
+    .status.warning {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .output {
+      background: #f8f9fa;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .messages {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      height: 250px;
+      overflow-y: auto;
+      padding: 10px;
+      background: white;
+      margin-bottom: 10px;
+    }
+
+    .message {
+      margin: 5px 0;
+      padding: 8px 12px;
+      border-radius: 15px;
+      max-width: 80%;
+    }
+
+    .message.sent {
+      background: #e3f2fd;
+      margin-left: auto;
+      text-align: right;
+    }
+
+    .message.received {
+      background: #f5f5f5;
+    }
+
+    .message .meta {
+      font-size: 10px;
+      color: #999;
+      margin-top: 3px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .input-row input {
+      flex: 1;
+    }
+
+    .data-display {
+      background: #263238;
+      color: #aed581;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      margin-top: 10px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .step {
+      background: #e8eaf6;
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      border-left: 4px solid #3f51b5;
+    }
+
+    .step-number {
+      background: #3f51b5;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      margin-right: 8px;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 20px 0;
+    }
+
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: normal;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+    }
   </style>
 </head>
+
 <body>
   <h1>CRM Services - Complete Test Suite</h1>
 
@@ -63,9 +295,9 @@
         <span class="step-number">Step 1</span>
         Register or Login to get auth cookie
       </div>
-      
+
       <div id="auth-status" class="status info">Not authenticated</div>
-      
+
       <div class="form-group">
         <label>Name (for register)</label>
         <input type="text" id="auth-name" placeholder="John Doe" value="Test User">
@@ -78,10 +310,10 @@
         <label>Password</label>
         <input type="password" id="auth-password" placeholder="password" value="password123">
       </div>
-      
+
       <button class="btn-purple" onclick="register()">Register</button>
       <button class="btn-purple" onclick="login()">Login</button>
-      
+
       <div class="data-display" id="auth-output">Response will appear here...</div>
     </div>
 
@@ -92,9 +324,9 @@
         <span class="step-number">Step 2</span>
         Create an API Key for your widget domain
       </div>
-      
+
       <div id="apikey-status" class="status info">Login first to manage API keys</div>
-      
+
       <div class="form-group">
         <label>Key Name</label>
         <input type="text" id="apikey-name" placeholder="My Website" value="Test Widget">
@@ -103,15 +335,15 @@
         <label>Allowed Domain</label>
         <input type="text" id="apikey-domain" placeholder="example.com" value="*">
       </div>
-      
+
       <button class="btn-orange" onclick="createAPIKey()">Create API Key</button>
       <button class="btn-orange" onclick="listAPIKeys()">List API Keys</button>
-      
+
       <div class="form-group" style="margin-top: 15px;">
         <label>Your Public Key (for widget)</label>
         <input type="text" id="public-key" readonly placeholder="Will be generated...">
       </div>
-      
+
       <div class="data-display" id="apikey-output">Response will appear here...</div>
     </div>
 
@@ -122,9 +354,9 @@
         <span class="step-number">Step 3</span>
         Initialize widget session with API key
       </div>
-      
+
       <div id="widget-status" class="status info">Create API key first</div>
-      
+
       <div class="form-group">
         <label>Public Key (X-Widget-Key)</label>
         <input type="text" id="widget-key" placeholder="pk_xxxxx">
@@ -133,10 +365,10 @@
         <label>Visitor ID (optional)</label>
         <input type="text" id="widget-visitor" placeholder="Leave empty for auto-generate">
       </div>
-      
+
       <button class="btn-green" onclick="initWidget()">Init Widget Session</button>
       <button class="btn-green" onclick="createWidgetChat()">Create Chat</button>
-      
+
       <div class="form-group" style="margin-top: 15px;">
         <label>Visitor Token</label>
         <input type="text" id="visitor-token" readonly placeholder="Will be generated...">
@@ -149,7 +381,7 @@
         <label>Chat ID</label>
         <input type="text" id="widget-chat-id" readonly>
       </div>
-      
+
       <div class="data-display" id="widget-output">Response will appear here...</div>
     </div>
 
@@ -160,25 +392,26 @@
         <span class="step-number">Step 4</span>
         Connect as CRM agent to chat
       </div>
-      
+
       <div id="crm-status" class="status info">Enter Chat ID and connect</div>
-      
+
       <div class="form-group">
         <label>Chat ID</label>
         <input type="text" id="crm-chat-id" placeholder="From widget or list">
       </div>
-      
+
       <button class="btn-blue" onclick="listChats()">List My Chats</button>
       <button class="btn-blue" onclick="connectCRM()">Connect WebSocket</button>
       <button class="btn-red" onclick="disconnectCRM()" id="crm-disconnect" disabled>Disconnect</button>
-      
+
       <div class="messages" id="crm-messages"></div>
-      
+
       <div class="input-row">
-        <input type="text" id="crm-input" placeholder="Type message..." disabled onkeypress="if(event.key==='Enter')sendCRM()">
+        <input type="text" id="crm-input" placeholder="Type message..." disabled
+          onkeypress="if(event.key==='Enter')sendCRM()">
         <button class="btn-blue" onclick="sendCRM()" id="crm-send" disabled>Send</button>
       </div>
-      
+
       <div class="data-display" id="crm-output">Chats will appear here...</div>
     </div>
 
@@ -189,9 +422,9 @@
         <span class="step-number">Step 5</span>
         Connect as visitor to chat
       </div>
-      
+
       <div id="client-status" class="status info">Init widget and create chat first</div>
-      
+
       <div class="form-group">
         <label>Chat ID</label>
         <input type="text" id="client-chat-id" placeholder="From widget creation">
@@ -200,14 +433,15 @@
         <label>Visitor ID</label>
         <input type="text" id="client-visitor-id" placeholder="From widget init">
       </div>
-      
+
       <button class="btn-pink" onclick="connectClient()">Connect WebSocket</button>
       <button class="btn-red" onclick="disconnectClient()" id="client-disconnect" disabled>Disconnect</button>
-      
+
       <div class="messages" id="client-messages"></div>
-      
+
       <div class="input-row">
-        <input type="text" id="client-input" placeholder="Type message..." disabled onkeypress="if(event.key==='Enter')sendClient()">
+        <input type="text" id="client-input" placeholder="Type message..." disabled
+          onkeypress="if(event.key==='Enter')sendClient()">
         <button class="btn-pink" onclick="sendClient()" id="client-send" disabled>Send</button>
       </div>
     </div>
@@ -219,16 +453,17 @@
         <span class="step-number">Step 6</span>
         Configure webhooks to receive events
       </div>
-      
+
       <div id="webhook-status" class="status info">Login first to manage webhooks</div>
-      
+
       <div class="form-group">
         <label>Webhook Name</label>
         <input type="text" id="webhook-name" placeholder="My Integration" value="Test Webhook">
       </div>
       <div class="form-group">
         <label>Webhook URL</label>
-        <input type="text" id="webhook-url" placeholder="https://your-server.com/webhook" value="https://webhook.site/your-uuid">
+        <input type="text" id="webhook-url" placeholder="https://your-server.com/webhook"
+          value="https://webhook.site/your-uuid">
       </div>
       <div class="form-group">
         <label>Events</label>
@@ -241,11 +476,11 @@
           <label><input type="checkbox" value="visitor.disconnected"> visitor.disconnected</label>
         </div>
       </div>
-      
+
       <button class="btn-cyan" onclick="createWebhook()">Create Webhook</button>
       <button class="btn-cyan" onclick="listWebhooks()">List Webhooks</button>
       <button class="btn-cyan" onclick="getAvailableEvents()">Get Events</button>
-      
+
       <div class="form-group" style="margin-top: 15px;">
         <label>Created Webhook ID</label>
         <input type="text" id="webhook-id" readonly>
@@ -254,10 +489,10 @@
         <label>Webhook Secret (HMAC)</label>
         <input type="text" id="webhook-secret" readonly>
       </div>
-      
+
       <button class="btn-teal" onclick="getWebhookLogs()">View Logs</button>
       <button class="btn-red" onclick="deleteWebhook()">Delete Webhook</button>
-      
+
       <div class="data-display" id="webhook-output">Response will appear here...</div>
     </div>
 
@@ -268,26 +503,26 @@
         <span class="step-number">Step 7</span>
         Send messages via webhook
       </div>
-      
+
       <div id="incoming-status" class="status info">Create incoming token first</div>
-      
+
       <div class="form-group">
         <label>Token Name</label>
         <input type="text" id="incoming-token-name" placeholder="Bot Integration" value="Test Bot">
       </div>
-      
+
       <button class="btn-cyan" onclick="createIncomingToken()">Create Token</button>
       <button class="btn-cyan" onclick="listIncomingTokens()">List Tokens</button>
-      
+
       <div class="form-group" style="margin-top: 15px;">
         <label>Incoming Token</label>
         <input type="text" id="incoming-token" readonly placeholder="whit_xxxxx">
       </div>
-      
+
       <hr>
-      
+
       <h3>Test Incoming Webhook</h3>
-      
+
       <div class="form-group">
         <label>Action</label>
         <select id="incoming-action">
@@ -301,11 +536,12 @@
       </div>
       <div class="form-group">
         <label>Message Content</label>
-        <textarea id="incoming-content" rows="3" placeholder="Hello from webhook!">Olá! Esta é uma mensagem automática do bot.</textarea>
+        <textarea id="incoming-content" rows="3"
+          placeholder="Hello from webhook!">Olá! Esta é uma mensagem automática do bot.</textarea>
       </div>
-      
+
       <button class="btn-teal" onclick="sendIncomingWebhook()">Send Webhook</button>
-      
+
       <div class="data-display" id="incoming-output">Response will appear here...</div>
     </div>
 
@@ -316,17 +552,18 @@
         <span class="step-number">Auto</span>
         Run complete flow automatically
       </div>
-      
+
       <button class="btn-purple" onclick="runFullTest()" style="width: 100%; padding: 15px; font-size: 16px;">
         Run Complete Test Flow
       </button>
-      
-      <button class="btn-cyan" onclick="runWebhookTest()" style="width: 100%; padding: 15px; font-size: 16px; margin-top: 10px;">
+
+      <button class="btn-cyan" onclick="runWebhookTest()"
+        style="width: 100%; padding: 15px; font-size: 16px; margin-top: 10px;">
         Run Webhook Test Flow
       </button>
-      
+
       <hr>
-      
+
       <h3>Test Steps:</h3>
       <ol style="font-size: 13px; color: #666;">
         <li>Register/Login user</li>
@@ -339,7 +576,7 @@
         <li>Create Webhook & Token</li>
         <li>Test Incoming Webhook</li>
       </ol>
-      
+
       <div id="test-log" class="data-display" style="height: 200px;"></div>
     </div>
   </div>
@@ -347,7 +584,7 @@
   <script>
     const API_BASE = 'http://localhost:8080';
     const WS_BASE = 'ws://localhost:8080';
-    
+
     let crmWs = null;
     let clientWs = null;
 
@@ -381,7 +618,7 @@
             password: document.getElementById('auth-password').value
           })
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('auth-status', 'Registered & logged in!', 'success');
@@ -408,7 +645,7 @@
             password: document.getElementById('auth-password').value
           })
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('auth-status', 'Logged in!', 'success');
@@ -436,7 +673,7 @@
             domain: document.getElementById('apikey-domain').value
           })
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('apikey-status', 'API Key created!', 'success');
@@ -460,7 +697,7 @@
           method: 'GET',
           credentials: 'include'
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('apikey-status', `Found ${data.length} API key(s)`, 'success');
@@ -489,7 +726,7 @@
 
         const res = await fetch(`${API_BASE}/widget/init`, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'X-Widget-Key': widgetKey
           },
@@ -497,7 +734,7 @@
             visitor_id: document.getElementById('widget-visitor').value || ''
           })
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('widget-status', 'Widget session initialized!', 'success');
@@ -520,14 +757,14 @@
       try {
         const widgetKey = document.getElementById('widget-key').value;
         const visitorId = document.getElementById('generated-visitor-id').value;
-        
+
         if (!widgetKey || !visitorId) {
           throw new Error('Init widget first');
         }
 
         const res = await fetch(`${API_BASE}/widget/chat`, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'X-Widget-Key': widgetKey
           },
@@ -535,7 +772,7 @@
             visitor_id: visitorId
           })
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('widget-status', 'Chat created!', 'success');
@@ -562,7 +799,7 @@
           method: 'GET',
           credentials: 'include'
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('crm-status', `Found ${data.length} chat(s)`, 'success');
@@ -590,7 +827,7 @@
 
       // CRM agent connects via /ws/chat with auth cookie
       crmWs = new WebSocket(`${WS_BASE}/ws/chat/${chatId}?visitor_id=crm-agent`);
-      
+
       crmWs.onopen = () => {
         setStatus('crm-status', 'Connected as CRM Agent', 'success');
         document.getElementById('crm-input').disabled = false;
@@ -598,7 +835,7 @@
         document.getElementById('crm-disconnect').disabled = false;
         log(`CRM WebSocket connected to chat ${chatId}`);
       };
-      
+
       crmWs.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
@@ -607,7 +844,7 @@
           addMessage('crm-messages', e.data, 'received', 'unknown');
         }
       };
-      
+
       crmWs.onerror = () => setStatus('crm-status', 'WebSocket Error', 'error');
       crmWs.onclose = () => {
         setStatus('crm-status', 'Disconnected', 'warning');
@@ -623,10 +860,10 @@
 
     function sendCRM() {
       if (!crmWs || crmWs.readyState !== WebSocket.OPEN) return;
-      
+
       const input = document.getElementById('crm-input');
       if (!input.value.trim()) return;
-      
+
       const msg = { type: 'message', content: input.value, visitor_id: 'crm-agent' };
       crmWs.send(JSON.stringify(msg));
       input.value = '';
@@ -636,7 +873,7 @@
     function connectClient() {
       const chatId = document.getElementById('client-chat-id').value;
       const visitorId = document.getElementById('client-visitor-id').value;
-      
+
       if (!chatId || !visitorId) {
         setStatus('client-status', 'Enter chat ID and visitor ID', 'error');
         return;
@@ -644,7 +881,7 @@
 
       // Widget client connects via /ws/widget
       clientWs = new WebSocket(`${WS_BASE}/ws/widget/${chatId}?visitor_id=${visitorId}`);
-      
+
       clientWs.onopen = () => {
         setStatus('client-status', 'Connected as Visitor', 'success');
         document.getElementById('client-input').disabled = false;
@@ -652,7 +889,7 @@
         document.getElementById('client-disconnect').disabled = false;
         log(`Client WebSocket connected to chat ${chatId}`);
       };
-      
+
       clientWs.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
@@ -662,7 +899,7 @@
           addMessage('client-messages', e.data, 'received', 'unknown');
         }
       };
-      
+
       clientWs.onerror = () => setStatus('client-status', 'WebSocket Error', 'error');
       clientWs.onclose = () => {
         setStatus('client-status', 'Disconnected', 'warning');
@@ -678,11 +915,11 @@
 
     function sendClient() {
       if (!clientWs || clientWs.readyState !== WebSocket.OPEN) return;
-      
+
       const input = document.getElementById('client-input');
       const visitorId = document.getElementById('client-visitor-id').value;
       if (!input.value.trim()) return;
-      
+
       const msg = { type: 'message', content: input.value, visitor_id: visitorId };
       clientWs.send(JSON.stringify(msg));
       input.value = '';
@@ -692,7 +929,13 @@
       const container = document.getElementById(containerId);
       const div = document.createElement('div');
       div.className = `message ${type}`;
-      div.innerHTML = `${content}<div class="meta">${sender} - ${new Date().toLocaleTimeString()}</div>`;
+      const contentSpan = document.createElement('span');
+      contentSpan.textContent = content;
+      const metaDiv = document.createElement('div');
+      metaDiv.className = 'meta';
+      metaDiv.textContent = `${sender} - ${new Date().toLocaleTimeString()}`;
+      div.appendChild(contentSpan);
+      div.appendChild(metaDiv);
       container.appendChild(div);
       container.scrollTop = container.scrollHeight;
     }
@@ -720,7 +963,7 @@
             events: events
           })
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('webhook-status', 'Webhook created!', 'success');
@@ -744,7 +987,7 @@
           method: 'GET',
           credentials: 'include'
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('webhook-status', `Found ${data.length} webhook(s)`, 'success');
@@ -768,7 +1011,7 @@
           method: 'GET',
           credentials: 'include'
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('webhook-status', 'Events loaded', 'success');
@@ -794,7 +1037,7 @@
           method: 'GET',
           credentials: 'include'
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('webhook-status', `Found ${data.length} log(s)`, 'success');
@@ -820,7 +1063,7 @@
           method: 'DELETE',
           credentials: 'include'
         });
-        
+
         if (res.ok) {
           setStatus('webhook-status', 'Webhook deleted!', 'success');
           setOutput('webhook-output', 'Webhook deleted successfully');
@@ -847,7 +1090,7 @@
             name: document.getElementById('incoming-token-name').value
           })
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('incoming-status', 'Token created!', 'success');
@@ -870,7 +1113,7 @@
           method: 'GET',
           credentials: 'include'
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('incoming-status', `Found ${data.length} token(s)`, 'success');
@@ -901,7 +1144,7 @@
 
         const res = await fetch(`${API_BASE}/webhook/incoming`, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'X-Webhook-Token': token
           },
@@ -911,7 +1154,7 @@
             content: content
           })
         });
-        
+
         const data = await res.json();
         if (res.ok) {
           setStatus('incoming-status', 'Webhook sent!', 'success');
@@ -931,58 +1174,58 @@
     async function runFullTest() {
       log('Starting full test flow...');
       document.getElementById('test-log').textContent = '';
-      
+
       try {
         // Step 1: Register
         log('Step 1: Registering user...');
         await register();
         await new Promise(r => setTimeout(r, 500));
-        
+
         // Step 2: Create API Key
         log('Step 2: Creating API Key...');
         await createAPIKey();
         await new Promise(r => setTimeout(r, 500));
-        
+
         // Step 3: Init Widget
         log('Step 3: Initializing Widget...');
         await initWidget();
         await new Promise(r => setTimeout(r, 500));
-        
+
         // Step 4: Create Chat
         log('Step 4: Creating Widget Chat...');
         await createWidgetChat();
         await new Promise(r => setTimeout(r, 500));
-        
+
         // Step 5: Connect CRM
         log('Step 5: Connecting CRM Agent...');
         connectCRM();
         await new Promise(r => setTimeout(r, 1000));
-        
+
         // Step 6: Connect Client
         log('Step 6: Connecting Widget Client...');
         connectClient();
         await new Promise(r => setTimeout(r, 1000));
-        
+
         // Step 7: Send test messages
         log('Step 7: Sending test messages...');
-        
+
         if (crmWs && crmWs.readyState === WebSocket.OPEN) {
           const msg = { type: 'message', content: 'Hello from CRM Agent!', visitor_id: 'crm-agent' };
           crmWs.send(JSON.stringify(msg));
           log('  CRM Agent sent: Hello from CRM Agent!');
         }
-        
+
         await new Promise(r => setTimeout(r, 500));
-        
+
         if (clientWs && clientWs.readyState === WebSocket.OPEN) {
           const visitorId = document.getElementById('client-visitor-id').value;
           const msg = { type: 'message', content: 'Hello from Visitor!', visitor_id: visitorId };
           clientWs.send(JSON.stringify(msg));
           log('  Visitor sent: Hello from Visitor!');
         }
-        
+
         log('Full test flow completed!');
-        
+
       } catch (err) {
         log(`Test failed: ${err.message}`);
       }
@@ -992,60 +1235,61 @@
     async function runWebhookTest() {
       log('Starting webhook test flow...');
       document.getElementById('test-log').textContent = '';
-      
+
       try {
         // Step 1: Login (assumes user exists)
         log('Step 1: Logging in...');
         await login();
         await new Promise(r => setTimeout(r, 500));
-        
+
         // Step 2: Create Outgoing Webhook
         log('Step 2: Creating outgoing webhook...');
         await createWebhook();
         await new Promise(r => setTimeout(r, 500));
-        
+
         // Step 3: Create Incoming Token
         log('Step 3: Creating incoming token...');
         await createIncomingToken();
         await new Promise(r => setTimeout(r, 500));
-        
+
         // Step 4: Create API Key & Widget
         log('Step 4: Creating API Key...');
         await createAPIKey();
         await new Promise(r => setTimeout(r, 500));
-        
+
         log('Step 5: Initializing Widget...');
         await initWidget();
         await new Promise(r => setTimeout(r, 500));
-        
+
         log('Step 6: Creating Chat...');
         await createWidgetChat();
         await new Promise(r => setTimeout(r, 500));
-        
-        // Step 5: Connect WebSockets
+
+        // Step 7: Connect WebSockets
         log('Step 7: Connecting WebSockets...');
         connectCRM();
         connectClient();
         await new Promise(r => setTimeout(r, 1000));
-        
-        // Step 6: Send message via incoming webhook
+
+        // Step 8: Send message via incoming webhook
         log('Step 8: Sending message via incoming webhook...');
         await sendIncomingWebhook();
         await new Promise(r => setTimeout(r, 500));
-        
-        // Step 7: Check webhook logs
+
+        // Step 9: Check webhook logs
         log('Step 9: Checking webhook logs...');
         await getWebhookLogs();
-        
+
         log('Webhook test flow completed!');
         log('');
         log('Check your webhook URL (e.g., webhook.site) to see outgoing events!');
         log('Messages sent via incoming webhook should appear in the chat!');
-        
+
       } catch (err) {
         log(`Test failed: ${err.message}`);
       }
     }
   </script>
 </body>
+
 </html>

@@ -1,15 +1,15 @@
 package model
 
 type CreateWebhookRequest struct {
-	Name   string   `json:"name"`
-	URL    string   `json:"url"`
-	Events []string `json:"events"`
+	Name   string   `json:"name" validate:"max=255"`
+	URL    string   `json:"url" validate:"required,url"`
+	Events []string `json:"events" validate:"required,min=1"`
 }
 
 type UpdateWebhookRequest struct {
-	Name     string   `json:"name"`
-	URL      string   `json:"url"`
-	Events   []string `json:"events"`
+	Name     string   `json:"name" validate:"max=255"`
+	URL      string   `json:"url" validate:"required,url"`
+	Events   []string `json:"events" validate:"required,min=1"`
 	IsActive bool     `json:"is_active"`
 }
 

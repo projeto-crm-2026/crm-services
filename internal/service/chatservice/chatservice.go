@@ -3,6 +3,7 @@ package chatservice
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/projeto-crm-2026/crm-services/internal/domain/entity"
 	"github.com/projeto-crm-2026/crm-services/internal/repo"
@@ -49,11 +50,13 @@ func (s *chatService) CreateChat(ctx context.Context, origin string, ownerUserID
 
 	if err := s.chatRepo.AddParticipant(ctx, chat.ID, &ownerUserID, "", entity.ParticipantRoleAgent); err != nil {
 		s.logger.Error("failed to add owner as participant", "error", err)
+		return nil, err
 	}
 
 	if visitorID != "" {
 		if err := s.chatRepo.AddParticipant(ctx, chat.ID, nil, visitorID, entity.ParticipantRoleVisitor); err != nil {
 			s.logger.Error("failed to add visitor as participant", "error", err)
+			return nil, err
 		}
 	}
 
@@ -98,9 +101,15 @@ func (s *chatService) SaveMessage(ctx context.Context, chatID uint, senderID *ui
 
 	if s.messageHandler != nil && visitorID != "" && senderID == nil {
 		chat, err := s.chatRepo.GetByID(ctx, chatID)
-		if err == nil {
+		if err != nil {
+			s.logger.Error("failed to load chat for webhook", "error", err, "chatID", chatID)
+		} else {
 			s.logger.Info("triggering webhook for message", "chatID", chatID, "messageID", message.ID)
-			go s.messageHandler.OnMessageReceived(context.Background(), chat.OwnerUserID, chatID, message)
+			go func() {
+				webhookCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // obrigado coderabbit, essa go func podia travar infinitamente sem context
+				defer cancel()
+				s.messageHandler.OnMessageReceived(webhookCtx, chat.OwnerUserID, chatID, message)
+			}()
 		}
 	}
 

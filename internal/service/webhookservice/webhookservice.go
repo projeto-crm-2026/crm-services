@@ -13,6 +13,7 @@ import (
 	"github.com/projeto-crm-2026/crm-services/internal/repo"
 	"github.com/projeto-crm-2026/crm-services/internal/server/websocket"
 	"github.com/projeto-crm-2026/crm-services/internal/service/chatservice"
+	"github.com/projeto-crm-2026/crm-services/pkg/crypto"
 )
 
 var (
@@ -24,7 +25,7 @@ var (
 
 type WebhookService interface {
 	// outgoing webhooks
-	CreateWebhook(ctx context.Context, userID uint, name, url string, events []string) (*entity.Webhook, error)
+	CreateWebhook(ctx context.Context, userID uint, name, url string, events []string) (*entity.Webhook, string, error)
 	ListWebhooks(ctx context.Context, userID uint) ([]entity.Webhook, error)
 	GetWebhook(ctx context.Context, userID, webhookID uint) (*entity.Webhook, error)
 	UpdateWebhook(ctx context.Context, userID, webhookID uint, name, url string, events []string, isActive bool) error
@@ -53,6 +54,7 @@ type webhookService struct {
 	chatService chatservice.ChatService
 	hub         *websocket.Hub
 	dispatcher  *Dispatcher
+	aesKey      string
 	logger      *slog.Logger
 }
 
@@ -60,30 +62,38 @@ func NewWebhookService(
 	webhookRepo repo.WebhookRepo,
 	chatService chatservice.ChatService,
 	hub *websocket.Hub,
+	aesKey string,
 	logger *slog.Logger,
 ) WebhookService {
-	dispatcher := NewDispatcher(webhookRepo, logger)
+	dispatcher := NewDispatcher(webhookRepo, logger, aesKey)
 
 	return &webhookService{
 		repo:        webhookRepo,
 		chatService: chatService,
 		hub:         hub,
 		dispatcher:  dispatcher,
+		aesKey:      aesKey,
 		logger:      logger,
 	}
 }
 
-func (s *webhookService) CreateWebhook(ctx context.Context, userID uint, name, url string, events []string) (*entity.Webhook, error) {
-	secret := "whsec_" + uuid.New().String()
+func (s *webhookService) CreateWebhook(ctx context.Context, userID uint, name, url string, events []string) (*entity.Webhook, string, error) {
+	plainSecret := "whsec_" + uuid.New().String()
 
-	webhook, err := s.repo.Insert(ctx, userID, name, url, secret, events)
+	encryptedSecret, err := crypto.Encrypt(plainSecret, s.aesKey)
+	if err != nil {
+		s.logger.Error("failed to encrypt webhook secret", "error", err)
+		return nil, "", err
+	}
+
+	webhook, err := s.repo.Insert(ctx, userID, name, url, encryptedSecret, events)
 	if err != nil {
 		s.logger.Error("failed to create webhook", "error", err)
-		return nil, err
+		return nil, "", err
 	}
 
 	s.logger.Info("webhook created", "webhookID", webhook.ID, "userID", userID)
-	return webhook, nil
+	return webhook, plainSecret, nil
 }
 
 func (s *webhookService) ListWebhooks(ctx context.Context, userID uint) ([]entity.Webhook, error) {
@@ -154,7 +164,11 @@ func (s *webhookService) DispatchEvent(ctx context.Context, userID uint, event *
 func (s *webhookService) ProcessIncomingWebhook(ctx context.Context, token string, payload *IncomingWebhookPayload) error {
 	t, err := s.repo.GetTokenByValue(ctx, token)
 	if err != nil {
-		s.logger.Warn("invalid incoming webhook token", "token", token[:10]+"...")
+		tokenPreview := token
+		if len(tokenPreview) > 10 {
+			tokenPreview = tokenPreview[:10] + "..."
+		}
+		s.logger.Warn("invalid incoming webhook token", "token", tokenPreview)
 		return ErrInvalidToken
 	}
 
@@ -204,9 +218,8 @@ func (s *webhookService) handleSendMessage(ctx context.Context, userID uint, pay
 }
 
 func (s *webhookService) handleCloseChat(ctx context.Context, userID uint, payload *IncomingWebhookPayload) error {
-	// TODO: logica de fechar chat, ainda nao vou fazer, nao sei se continua
-	s.logger.Info("close chat requested via webhook", "chatID", payload.ChatID, "userID", userID)
-	return nil
+	s.logger.Warn("close chat requested via webhook but not implemented", "chatID", payload.ChatID, "userID", userID)
+	return errors.New("close_chat not implemented")
 }
 
 func (s *webhookService) OnMessageReceived(ctx context.Context, userID uint, chatID uint, message *entity.Message) {

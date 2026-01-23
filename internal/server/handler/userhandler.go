@@ -20,10 +20,8 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var request model.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "invalid payload", http.StatusBadRequest)
-		defer r.Body.Close()
 		return
 	}
-	defer r.Body.Close()
 
 	if err := request.Validate(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -55,10 +53,8 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req model.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid payload", http.StatusBadRequest)
-		defer r.Body.Close()
 		return
 	}
-	defer r.Body.Close()
 
 	if err := req.Validate(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

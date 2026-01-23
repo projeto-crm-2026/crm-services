@@ -22,7 +22,6 @@ func (h *WidgetHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid payload", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
 
 	if req.Domain == "" {
 		http.Error(w, "domain is required", http.StatusBadRequest)

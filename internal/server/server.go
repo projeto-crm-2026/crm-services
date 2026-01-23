@@ -20,6 +20,7 @@ type Server struct {
 	userHandler           *handler.UserHandler
 	chatHandler           *handler.ChatHandler
 	widgetHandler         *handler.WidgetHandler
+	webhookHandler        *handler.WebhookHandler
 	contentJSONMiddleware func(http.Handler) http.Handler
 	jwtMiddleware         func(http.Handler) http.Handler
 	corsMiddleware        func(http.Handler) http.Handler
@@ -57,6 +58,10 @@ func WithWidgetHandler(h *handler.WidgetHandler) Option {
 	return func(s *Server) { s.widgetHandler = h }
 }
 
+func WithWebhookHandler(h *handler.WebhookHandler) Option {
+	return func(s *Server) { s.webhookHandler = h }
+}
+
 func WithContentJSONMiddleware(mw func(http.Handler) http.Handler) Option {
 	return func(s *Server) {
 		s.contentJSONMiddleware = mw
@@ -88,7 +93,7 @@ func NewServer(opts ...Option) *Server {
 	}
 	s.httpSrv = &http.Server{
 		Addr:    s.cfg.Server.Address,
-		Handler: route.New(s.healthHandler, s.userHandler, s.chatHandler, s.widgetHandler, s.contentJSONMiddleware, s.jwtMiddleware, s.corsMiddleware, s.widgetAuthMiddleware),
+		Handler: route.New(s.healthHandler, s.userHandler, s.chatHandler, s.widgetHandler, s.webhookHandler, s.contentJSONMiddleware, s.jwtMiddleware, s.corsMiddleware, s.widgetAuthMiddleware),
 	}
 
 	return s

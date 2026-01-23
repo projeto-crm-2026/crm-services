@@ -47,6 +47,13 @@ func Connect(ctx context.Context, dbConfig config.DBConfig) (*Conn, error) {
 	}, nil
 }
 
+func RunCustomMigrations(db *gorm.DB) error {
+	return db.Exec(`
+        CREATE INDEX IF NOT EXISTS idx_webhook_events_gin 
+        ON webhook USING GIN (events);
+    `).Error
+}
+
 func (c *Conn) GetDB() *gorm.DB {
 	return c.db
 }

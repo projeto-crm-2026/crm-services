@@ -4,75 +4,72 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/projeto-crm-2026/crm-services/internal/server/handler"
 )
 
-func New(
-	healthHandler *handler.HealthHandler,
-	userHandler *handler.UserHandler,
-	chatHandler *handler.ChatHandler,
-	widgetHandler *handler.WidgetHandler,
-	webhookHandler *handler.WebhookHandler,
-	contentJSONMiddleware func(http.Handler) http.Handler,
-	jwtMiddleware func(http.Handler) http.Handler,
-	corsMiddleware func(http.Handler) http.Handler,
-	widgetAuthMiddleware func(http.Handler) http.Handler,
-) http.Handler {
+func New(cfg Config) http.Handler {
 	r := chi.NewRouter()
 
-	r.Use(corsMiddleware)
-	r.Get("/health", healthHandler.Health)
+	r.Use(cfg.Middlewares.CORS)
+	r.Get("/health", cfg.Handlers.Health.Health)
 
+	// auth
 	r.Group(func(r chi.Router) {
-		r.Use(contentJSONMiddleware)
-		r.Post("/register", userHandler.Register)
-		r.Post("/login", userHandler.Login)
-		r.Post("/logout", userHandler.Logout)
+		r.Use(cfg.Middlewares.ContentJSON)
+		r.Use(cfg.RateLimiters.Auth)
+
+		r.Post("/register", cfg.Handlers.User.Register)
+		r.Post("/login", cfg.Handlers.User.Login)
+		r.Post("/logout", cfg.Handlers.User.Logout)
 	})
 
+	// widget
 	r.Group(func(r chi.Router) {
-		r.Use(widgetAuthMiddleware)
-		r.Use(contentJSONMiddleware)
+		r.Use(cfg.Middlewares.WidgetAuth)
+		r.Use(cfg.Middlewares.ContentJSON)
+		r.Use(cfg.RateLimiters.Widget)
 
-		r.Post("/widget/init", widgetHandler.InitWidget)
-		r.Post("/widget/chat", chatHandler.CreateWidgetChat)
-		r.Get("/widget/chat/{chatID}/messages", chatHandler.GetMessages)
+		r.Post("/widget/init", cfg.Handlers.Widget.InitWidget)
+		r.Post("/widget/chat", cfg.Handlers.Chat.CreateWidgetChat)
+		r.Get("/widget/chat/{chatID}/messages", cfg.Handlers.Chat.GetMessages)
 	})
 
 	// webSocket for authenticated CRM agents and widgets
-	r.Get("/ws/chat/{chatID}", chatHandler.HandleWebSocket)
-	r.Get("/ws/widget/{chatID}", chatHandler.HandleWebSocket)
+	r.Get("/ws/chat/{chatID}", cfg.Handlers.Chat.HandleWebSocket)
+	r.Get("/ws/widget/{chatID}", cfg.Handlers.Chat.HandleWebSocket)
 
-	// incoming webhooks
-	r.Post("/webhook/incoming", webhookHandler.HandleIncomingWebhook)
+	// incoming webhook
+	r.With(cfg.RateLimiters.Webhook).
+		Post("/webhook/incoming", cfg.Handlers.Webhook.HandleIncomingWebhook)
 
+	// protected
 	r.Group(func(r chi.Router) {
-		r.Use(contentJSONMiddleware)
-		r.Use(jwtMiddleware)
+		r.Use(cfg.Middlewares.ContentJSON)
+		r.Use(cfg.Middlewares.JWT)
+		r.Use(cfg.RateLimiters.API)
 
 		// API Key
-		r.Post("/api-keys", widgetHandler.CreateAPIKey)
-		r.Get("/api-keys", widgetHandler.ListAPIKeys)
-		r.Delete("/api-keys/{keyID}", widgetHandler.DeleteAPIKey)
+		r.Post("/api-keys", cfg.Handlers.Widget.CreateAPIKey)
+		r.Get("/api-keys", cfg.Handlers.Widget.ListAPIKeys)
+		r.Delete("/api-keys/{keyID}", cfg.Handlers.Widget.DeleteAPIKey)
 
 		// CRM agent
-		r.Get("/chats", chatHandler.ListChats)
-		r.Get("/chats/{chatID}", chatHandler.GetChat)
-		r.Get("/chats/{chatID}/messages", chatHandler.GetMessages)
+		r.Get("/chats", cfg.Handlers.Chat.ListChats)
+		r.Get("/chats/{chatID}", cfg.Handlers.Chat.GetChat)
+		r.Get("/chats/{chatID}/messages", cfg.Handlers.Chat.GetMessages)
 
 		// outgoing webhooks
-		r.Get("/webhooks/events", webhookHandler.GetAvailableEvents)
-		r.Post("/webhooks", webhookHandler.CreateWebhook)
-		r.Get("/webhooks", webhookHandler.ListWebhooks)
-		r.Get("/webhooks/{webhookID}", webhookHandler.GetWebhook)
-		r.Put("/webhooks/{webhookID}", webhookHandler.UpdateWebhook)
-		r.Delete("/webhooks/{webhookID}", webhookHandler.DeleteWebhook)
-		r.Get("/webhooks/{webhookID}/logs", webhookHandler.GetWebhookLogs)
+		r.Get("/webhooks/events", cfg.Handlers.Webhook.GetAvailableEvents)
+		r.Post("/webhooks", cfg.Handlers.Webhook.CreateWebhook)
+		r.Get("/webhooks", cfg.Handlers.Webhook.ListWebhooks)
+		r.Get("/webhooks/{webhookID}", cfg.Handlers.Webhook.GetWebhook)
+		r.Put("/webhooks/{webhookID}", cfg.Handlers.Webhook.UpdateWebhook)
+		r.Delete("/webhooks/{webhookID}", cfg.Handlers.Webhook.DeleteWebhook)
+		r.Get("/webhooks/{webhookID}/logs", cfg.Handlers.Webhook.GetWebhookLogs)
 
 		// incoming webhook tokens
-		r.Post("/webhooks/tokens", webhookHandler.CreateIncomingToken)
-		r.Get("/webhooks/tokens", webhookHandler.ListIncomingTokens)
-		r.Delete("/webhooks/tokens/{tokenID}", webhookHandler.DeleteIncomingToken)
+		r.Post("/webhooks/tokens", cfg.Handlers.Webhook.CreateIncomingToken)
+		r.Get("/webhooks/tokens", cfg.Handlers.Webhook.ListIncomingTokens)
+		r.Delete("/webhooks/tokens/{tokenID}", cfg.Handlers.Webhook.DeleteIncomingToken)
 	})
 
 	return r

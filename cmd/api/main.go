@@ -107,6 +107,12 @@ func main() {
 	corsMiddleware := middleware.CORSMiddleware()
 	widgetAuthMiddleware := middleware.WidgetAuthMiddleware(widgetAdapter)
 
+	//rate limiters
+	authRateLimiter := middleware.RateLimitMiddleware(middleware.AuthLimit)
+	widgetRateLimiter := middleware.RateLimitMiddleware(middleware.WidgetLimit)
+	webhookRateLimiter := middleware.RateLimitMiddleware(middleware.WebhookLimit)
+	apiRateLimiter := middleware.RateLimitMiddleware(middleware.APILimit)
+
 	srv := server.NewServer(
 		server.WithLogger(logger),
 		server.WithConfig(cfg),
@@ -120,6 +126,10 @@ func main() {
 		server.WithJWTMiddleware(jwtMiddleware),
 		server.WithCorsMiddleware(corsMiddleware),
 		server.WithWidgetAuthMiddleware(widgetAuthMiddleware),
+		server.WithAuthRateLimiter(authRateLimiter),
+		server.WithWidgetRateLimiter(widgetRateLimiter),
+		server.WithWebhookRateLimiter(webhookRateLimiter),
+		server.WithAPIRateLimiter(apiRateLimiter),
 	)
 	srv.Start(ctx)
 

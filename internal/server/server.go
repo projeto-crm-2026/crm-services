@@ -25,6 +25,10 @@ type Server struct {
 	jwtMiddleware         func(http.Handler) http.Handler
 	corsMiddleware        func(http.Handler) http.Handler
 	widgetAuthMiddleware  func(http.Handler) http.Handler
+	authRateLimiter       func(http.Handler) http.Handler
+	widgetRateLimiter     func(http.Handler) http.Handler
+	webhookRateLimiter    func(http.Handler) http.Handler
+	apiRateLimiter        func(http.Handler) http.Handler
 	httpSrv               *http.Server
 }
 
@@ -86,14 +90,58 @@ func WithWidgetAuthMiddleware(mw func(http.Handler) http.Handler) Option {
 	}
 }
 
+func WithAuthRateLimiter(m func(http.Handler) http.Handler) Option {
+	return func(s *Server) {
+		s.authRateLimiter = m
+	}
+}
+
+func WithWidgetRateLimiter(m func(http.Handler) http.Handler) Option {
+	return func(s *Server) {
+		s.widgetRateLimiter = m
+	}
+}
+
+func WithWebhookRateLimiter(m func(http.Handler) http.Handler) Option {
+	return func(s *Server) {
+		s.webhookRateLimiter = m
+	}
+}
+
+func WithAPIRateLimiter(m func(http.Handler) http.Handler) Option {
+	return func(s *Server) {
+		s.apiRateLimiter = m
+	}
+}
+
 func NewServer(opts ...Option) *Server {
 	s := &Server{}
 	for _, opt := range opts {
 		opt(s)
 	}
 	s.httpSrv = &http.Server{
-		Addr:    s.cfg.Server.Address,
-		Handler: route.New(s.healthHandler, s.userHandler, s.chatHandler, s.widgetHandler, s.webhookHandler, s.contentJSONMiddleware, s.jwtMiddleware, s.corsMiddleware, s.widgetAuthMiddleware),
+		Addr: s.cfg.Server.Address,
+		Handler: route.New(route.Config{
+			Handlers: route.Handlers{
+				Health:  s.healthHandler,
+				User:    s.userHandler,
+				Chat:    s.chatHandler,
+				Widget:  s.widgetHandler,
+				Webhook: s.webhookHandler,
+			},
+			Middlewares: route.Middlewares{
+				ContentJSON: s.contentJSONMiddleware,
+				JWT:         s.jwtMiddleware,
+				CORS:        s.corsMiddleware,
+				WidgetAuth:  s.widgetAuthMiddleware,
+			},
+			RateLimiters: route.RateLimiters{
+				Auth:    s.authRateLimiter,
+				Widget:  s.widgetRateLimiter,
+				Webhook: s.webhookRateLimiter,
+				API:     s.apiRateLimiter,
+			},
+		}),
 	}
 
 	return s

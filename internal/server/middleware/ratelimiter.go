@@ -84,8 +84,8 @@ var (
 	// webhook: 60 req/min por token
 	webhookPool = NewRateLimiterPool(rate.Every(1*time.Second), 60)
 
-	// widget: 60 req/min por chave de API
-	widgetPool = NewRateLimiterPool(rate.Every(1*time.Second), 60)
+	// widget: 30 req/min por chave de API
+	widgetPool = NewRateLimiterPool(rate.Every(1*time.Second), 30)
 
 	// api: 100 req/min por user
 	apiPool = NewRateLimiterPool(rate.Every(600*time.Millisecond), 100)

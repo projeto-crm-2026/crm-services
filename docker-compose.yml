@@ -31,6 +31,7 @@ services:
       - DB_PORT=${DB_PORT:-5432}
       - DB_NAME=${DB_NAME:-crm_services_db}
       - JWT_SECRET=${JWT_SECRET:-teste}
+      - CRYPTO_AES_KEY=${CRYPTO_AES_KEY:-12345678901234567890123456789012}
     ports:
       - "8080:8080"
     depends_on:

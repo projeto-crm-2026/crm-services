@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/projeto-crm-2026/crm-services/internal/domain/constant"
 	"github.com/projeto-crm-2026/crm-services/internal/domain/entity"
 	"github.com/projeto-crm-2026/crm-services/internal/repo"
@@ -103,7 +104,13 @@ func (s *webhookService) ListWebhooks(ctx context.Context, userID uint) ([]entit
 func (s *webhookService) GetWebhook(ctx context.Context, userID, webhookID uint) (*entity.Webhook, error) {
 	webhook, err := s.repo.GetByID(ctx, webhookID)
 	if err != nil {
-		return nil, ErrWebhookNotFound
+		if errors.Is(err, pgx.ErrNoRows) {
+			s.logger.Warn("webhook not found", "webhookID", webhookID, "userID", userID)
+			return nil, ErrWebhookNotFound
+		}
+
+		s.logger.Error("failed to get webhook", "webhookID", webhookID, "error", err)
+		return nil, err
 	}
 
 	if webhook.UserID != userID {
@@ -172,7 +179,9 @@ func (s *webhookService) ProcessIncomingWebhook(ctx context.Context, token strin
 		return ErrInvalidToken
 	}
 
-	s.repo.UpdateTokenLastUsed(ctx, t.ID)
+	if err := s.repo.UpdateTokenLastUsed(ctx, t.ID); err != nil {
+		s.logger.Warn("failed to update token last used", "tokenID", t.ID, "error", err)
+	}
 
 	switch payload.Action {
 	case constant.ActionSendMessage:
@@ -210,7 +219,12 @@ func (s *webhookService) handleSendMessage(ctx context.Context, userID uint, pay
 		"timestamp":  message.CreatedAt,
 	}
 
-	msgBytes, _ := json.Marshal(wsMessage)
+	msgBytes, err := json.Marshal(wsMessage)
+	if err != nil {
+		s.logger.Error("failed to marshal websocket message", "error", err)
+		return err
+	}
+
 	s.hub.BroadcastToChat(payload.ChatID, msgBytes)
 
 	s.logger.Info("message sent via incoming webhook", "chatID", payload.ChatID, "userID", userID)

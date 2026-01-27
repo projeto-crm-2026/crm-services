@@ -136,7 +136,7 @@ func (d *Dispatcher) sendWebhook(ctx context.Context, webhook *entity.Webhook, e
 
 	log.ResponseBody = string(buf[:n])
 
-	if resp.StatusCode > 300 {
+	if resp.StatusCode > 300 || resp.StatusCode < 200 {
 		if incErr := d.repo.IncrementFailCount(ctx, webhook.ID); incErr != nil {
 			d.logger.Error("failed to increment webhook fail count", "error", incErr, "webhookID", webhook.ID)
 		}

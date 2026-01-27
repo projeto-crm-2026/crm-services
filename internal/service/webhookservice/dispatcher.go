@@ -124,27 +124,30 @@ func (d *Dispatcher) sendWebhook(ctx context.Context, webhook *entity.Webhook, e
 			d.logger.Error("failed to increment webhook fail count", "error", incErr, "webhookID", webhook.ID)
 		}
 		d.logger.Error("webhook request failed", "error", err, "webhookID", webhook.ID, "url", webhook.URL)
-	} else {
-		defer resp.Body.Close()
-		log.ResponseCode = resp.StatusCode
-
-		buf := make([]byte, 1024)
-		n, _ := resp.Body.Read(buf)
-
-		log.ResponseBody = string(buf[:n])
-
-		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			if resetErr := d.repo.ResetFailCount(ctx, webhook.ID); resetErr != nil {
-				d.logger.Error("failed to reset webhook fail count", "error", resetErr, "webhookID", webhook.ID)
-			}
-			d.logger.Info("webhook sent successfully", "webhookID", webhook.ID, "status", resp.StatusCode)
-		} else {
-			if incErr := d.repo.IncrementFailCount(ctx, webhook.ID); incErr != nil {
-				d.logger.Error("failed to increment webhook fail count", "error", incErr, "webhookID", webhook.ID)
-			}
-			d.logger.Warn("webhook returned error", "webhookID", webhook.ID, "status", resp.StatusCode)
-		}
+		return
 	}
+
+	defer resp.Body.Close()
+
+	log.ResponseCode = resp.StatusCode
+
+	buf := make([]byte, 1024)
+	n, _ := resp.Body.Read(buf)
+
+	log.ResponseBody = string(buf[:n])
+
+	if resp.StatusCode > 300 {
+		if incErr := d.repo.IncrementFailCount(ctx, webhook.ID); incErr != nil {
+			d.logger.Error("failed to increment webhook fail count", "error", incErr, "webhookID", webhook.ID)
+		}
+		d.logger.Warn("webhook returned error", "webhookID", webhook.ID, "status", resp.StatusCode)
+		return
+	}
+
+	if resetErr := d.repo.ResetFailCount(ctx, webhook.ID); resetErr != nil {
+		d.logger.Error("failed to reset webhook fail count", "error", resetErr, "webhookID", webhook.ID)
+	}
+	d.logger.Info("webhook sent successfully", "webhookID", webhook.ID, "status", resp.StatusCode)
 
 	if err := d.repo.UpdateLastUsed(ctx, webhook.ID); err != nil {
 		d.logger.Error("failed to update webhook last used", "error", err, "webhookID", webhook.ID)

@@ -16,6 +16,8 @@ import (
 	"github.com/projeto-crm-2026/crm-services/internal/server/middleware"
 	"github.com/projeto-crm-2026/crm-services/internal/server/websocket"
 	"github.com/projeto-crm-2026/crm-services/internal/service/chatservice"
+	"github.com/projeto-crm-2026/crm-services/internal/service/contactservice"
+	"github.com/projeto-crm-2026/crm-services/internal/service/organizationservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/userservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/webhookservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/widgetservice"
@@ -60,6 +62,8 @@ func main() {
 		&entity.Webhook{},
 		&entity.WebhookLog{},
 		&entity.IncomingWebhookToken{},
+		&entity.Contact{},
+		&entity.Organization{},
 		// adicionar as entidades que forem criadas
 	); err != nil {
 		logger.Error("failed to run migrations", "error", err)
@@ -78,6 +82,8 @@ func main() {
 	messageRepo := repo.NewMessageRepo(pgxPool)
 	apiKeyRepo := repo.NewAPIKeyRepo(pgxPool)
 	webhookRepo := repo.NewWebhookRepo(pgxPool)
+	contactRepo := repo.NewContactRepo(pgxPool)
+	organizationRepo := repo.NewOrganizationRepo(pgxPool)
 
 	// websocket hub
 	hub := websocket.NewHub()
@@ -88,6 +94,8 @@ func main() {
 	widgetSvc := widgetservice.NewWidgetService(apiKeyRepo, &cfg.JWT, logger)
 	chatSvc := chatservice.NewChatService(chatRepo, messageRepo, logger)
 	webhookSvc := webhookservice.NewWebhookService(webhookRepo, chatSvc, hub, cfg.Crypto.AESKey, logger)
+	contactSvc := contactservice.NewContactService(contactRepo, logger)
+	organizationSvc := organizationservice.NewOrganizationService(organizationRepo, logger)
 
 	chatSvc.SetMessageHandler(webhookSvc)
 
@@ -97,6 +105,8 @@ func main() {
 	chatHandler := handler.NewChatHandler(hub, chatSvc)
 	widgetHandler := handler.NewWidgetHandler(widgetSvc)
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
+	contactHandler := handler.NewContactHandler(contactSvc)
+	organizationHandler := handler.NewOrganizationHandler(organizationSvc)
 
 	// adapters
 	widgetAdapter := adapters.NewWidgetValidator(widgetSvc)
@@ -120,6 +130,8 @@ func main() {
 		server.WithHealthHandler(healthHandler),
 		server.WithUserHandler(userHandler),
 		server.WithChatHandler(chatHandler),
+		server.WithContactHandler(contactHandler),
+		server.WithOrganizationHandler(organizationHandler),
 		server.WithWidgetHandler(widgetHandler),
 		server.WithWebhookHandler(webhookHandler),
 		server.WithContentJSONMiddleware(contentJsonMiddleware),
@@ -132,5 +144,4 @@ func main() {
 		server.WithAPIRateLimiter(apiRateLimiter),
 	)
 	srv.Start(ctx)
-
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type JWTPackage interface {
@@ -13,20 +14,22 @@ type JWTPackage interface {
 }
 
 type Claims struct {
-	UserID uint   `json:"user_id"`
-	Email  string `json:"email"`
+	UserID         uint      `json:"user_id"`
+	Email          string    `json:"email"`
+	OrganizationID uuid.UUID `json:"organization_id"`
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(userID uint, email string, jwtSecret string) (string, error) {
+func GenerateToken(userID uint, email string, organizationID uuid.UUID, jwtSecret string) (string, error) {
 	if jwtSecret == "" {
 		jwtSecret = "test123"
 	}
 
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
-		UserID: userID,
-		Email:  email,
+		UserID:         userID,
+		Email:          email,
+		OrganizationID: organizationID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

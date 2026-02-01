@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/projeto-crm-2026/crm-services/internal/repo"
+	"github.com/projeto-crm-2026/crm-services/internal/server/middleware"
 	"github.com/projeto-crm-2026/crm-services/internal/server/model"
 	"github.com/projeto-crm-2026/crm-services/internal/service/contactservice"
 )
@@ -45,6 +46,19 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.GetUserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if claims.OrganizationID == nil {
+		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		return
+	}
+
+	organization_id := *claims.OrganizationID
+	
 	rawId := r.PathValue("id")
 	id, err := uuid.Parse(rawId)
 	if err != nil {
@@ -58,7 +72,7 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contact, err := h.service.GetByID(r.Context(), id)
+	contact, err := h.service.GetByID(r.Context(), id, organization_id)
 	if err != nil {
 		http.Error(w, "contact not found", http.StatusNotFound)
 		return
@@ -80,6 +94,19 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ContactHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.GetUserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if claims.OrganizationID == nil {
+		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		return
+	}
+
+	organization_id := *claims.OrganizationID
+
 	rawId := r.PathValue("id")
 	id, err := uuid.Parse(rawId)
 	if err != nil {
@@ -87,7 +114,7 @@ func (h *ContactHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contact, err := h.service.GetByID(r.Context(), id)
+	contact, err := h.service.GetByID(r.Context(), id, organization_id)
 	if err != nil {
 		http.Error(w, "contact not found", http.StatusNotFound)
 		return
@@ -101,13 +128,26 @@ func (h *ContactHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ContactHandler) GetByEmail(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.GetUserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if claims.OrganizationID == nil {
+		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		return
+	}
+
+	organization_id := *claims.OrganizationID
+
 	email := r.PathValue("email")
 	if email == "" {
 		http.Error(w, "invalid email provided", http.StatusBadRequest)
 		return
 	}
 
-	contact, err := h.service.GetByEmail(r.Context(), email)
+	contact, err := h.service.GetByEmail(r.Context(), email, organization_id)
 	if err != nil {
 		http.Error(w, "contact not found", http.StatusNotFound)
 		return
@@ -128,7 +168,7 @@ func (h *ContactHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.service.GetByID(r.Context(), id)
+	err = h.service.Delete(r.Context(), id)
 	if err != nil {
 		http.Error(w, "contact not found", http.StatusNotFound)
 		return
@@ -154,7 +194,7 @@ func (h *ContactHandler) SoftDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.service.GetByID(r.Context(), id)
+	err = h.service.SoftDelete(r.Context(), id)
 	if err != nil {
 		http.Error(w, "contact not found", http.StatusNotFound)
 		return
@@ -217,6 +257,19 @@ func (h *ContactHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ContactHandler) Search(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.GetUserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if claims.OrganizationID == nil {
+		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		return
+	}
+
+	organization_id := *claims.OrganizationID
+
 	queryTerm := r.URL.Query().Get("q")
 	if queryTerm == "" {
 		http.Error(w, "search query 'q' is required", http.StatusBadRequest)
@@ -225,7 +278,7 @@ func (h *ContactHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	filters := h.parseFilters(r)
 
-	contacts, err := h.service.Search(r.Context(), queryTerm, filters)
+	contacts, err := h.service.Search(r.Context(), queryTerm, filters, organization_id)
 	if err != nil {
 		http.Error(w, "failed to search contacts", http.StatusInternalServerError)
 		return

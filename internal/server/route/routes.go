@@ -82,13 +82,13 @@ func New(cfg Config) http.Handler {
 
 		r.Get("/contacts", cfg.Handlers.Contact.List)
 		r.Get("/contacts/search", cfg.Handlers.Contact.Search)
-		r.Get("/contacts/{contactId}", cfg.Handlers.Contact.GetByID)
+		r.Get("/contacts/{id}", cfg.Handlers.Contact.GetByID)
 		r.Get("/contacts/email/{email}", cfg.Handlers.Contact.GetByEmail)
 
-		r.Patch("/contacts/${contactId}", cfg.Handlers.Contact.Update)
+		r.Patch("/contacts/${id}", cfg.Handlers.Contact.Update)
 
-		r.Delete("/contacts/{contactId}", cfg.Handlers.Contact.SoftDelete)
-		r.Delete("/contacts/{contactId}/permanent", cfg.Handlers.Contact.Delete)
+		r.Delete("/contacts/{id}", cfg.Handlers.Contact.SoftDelete)
+		r.Delete("/contacts/{id}/permanent", cfg.Handlers.Contact.Delete)
 	})
 
 	r.Group(func(r chi.Router) {

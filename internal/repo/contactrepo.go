@@ -32,8 +32,8 @@ type PaginatedResult[T any] struct {
 
 type ContactRepo interface {
 	Create(ctx context.Context, contact *entity.Contact) (*entity.Contact, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*entity.Contact, error)
-	GetByEmail(ctx context.Context, email string) (*entity.Contact, error)
+	GetByID(ctx context.Context, id uuid.UUID, organization_id uuid.UUID) (*entity.Contact, error)
+	GetByEmail(ctx context.Context, email string, organization_id uuid.UUID) (*entity.Contact, error)
 	Update(ctx context.Context, contact *entity.Contact) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
@@ -41,7 +41,7 @@ type ContactRepo interface {
 	List(ctx context.Context, filters ContactFilters) ([]*entity.Contact, error)
 	ListPaginated(ctx context.Context, filters ContactFilters, page, pageSize int) (*PaginatedResult[entity.Contact], error)
 
-	Search(ctx context.Context, query string, filters ContactFilters) ([]*entity.Contact, error)
+	Search(ctx context.Context, query string, filters ContactFilters, organization_id uuid.UUID) ([]*entity.Contact, error)
 }
 
 type contactRepo struct {
@@ -53,11 +53,11 @@ func NewContactRepo(pool *pgxpool.Pool) ContactRepo {
 }
 
 const (
-	fullFields = `id,type,first_name,last_name,full_name,email,phone,mobile_phone,alternate_email,
+	fullFields = `id,uuid,organization_id,type,first_name,last_name,full_name,email,phone,mobile_phone,alternate_email,
 		company_name,job_title,department,street,number,complement,district,city,state,zip_code,
 		country,status,source,tags,notes,assigned_to_id,created_by_id,updated_by_id,created_at,updated_at`
 
-	listFields = `id,type,first_name,last_name,full_name,email,phone,mobile_phone,company_name,
+	listFields = `id,uuid,type,first_name,last_name,full_name,email,phone,mobile_phone,company_name,
 		job_title,status,source,city,state,country,assigned_to_id,created_at,updated_at`
 )
 
@@ -66,13 +66,13 @@ func (r *contactRepo) Create(ctx context.Context, c *entity.Contact) (*entity.Co
 	contact := &entity.Contact{}
 
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO contacts (type,first_name,last_name,full_name,email,phone,mobile_phone,
+		INSERT INTO contacts (type,organization_id,first_name,last_name,full_name,email,phone,mobile_phone,
 			alternate_email,company_name,job_title,department,street,number,complement,district,
 			city,state,zip_code,country,status,source,tags,notes,assigned_to_id,created_by_id,
 			created_at,updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,NOW(),NOW())
-		RETURNING id,created_at,updated_at`,
-		c.Type, c.FirstName, c.LastName, c.FullName,
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,NOW(),NOW())
+		RETURNING `+fullFields,
+		c.Type, c.OrganizationID, c.FirstName, c.LastName, c.FullName,
 		validate(c.Email), validate(c.Phone), validate(c.MobilePhone), validate(c.AlternateEmail),
 		validate(c.CompanyName), validate(c.JobTitle), validate(c.Department),
 		validate(c.Street), validate(c.Number), validate(c.Complement), validate(c.District),
@@ -83,10 +83,10 @@ func (r *contactRepo) Create(ctx context.Context, c *entity.Contact) (*entity.Co
 	return contact, err
 }
 
-func (r *contactRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Contact, error) {
+func (r *contactRepo) GetByID(ctx context.Context, id uuid.UUID, organization_id uuid.UUID) (*entity.Contact, error) {
 	contact := &entity.Contact{}
 	err := r.pool.QueryRow(ctx,
-		fmt.Sprintf("SELECT %s FROM contacts WHERE id=$1 AND deleted_at IS NULL", fullFields), id,
+		fmt.Sprintf("SELECT %s FROM contacts WHERE id=$1 AND deleted_at IS NULL AND organization_id=$2", fullFields), id, organization_id,
 	).Scan(r.scanFull(contact)...)
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -95,10 +95,10 @@ func (r *contactRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Contac
 	return contact, err
 }
 
-func (r *contactRepo) GetByEmail(ctx context.Context, email string) (*entity.Contact, error) {
+func (r *contactRepo) GetByEmail(ctx context.Context, email string, organization_id uuid.UUID) (*entity.Contact, error) {
 	contact := &entity.Contact{}
 	err := r.pool.QueryRow(ctx,
-		fmt.Sprintf("SELECT %s FROM contacts WHERE email=$1 AND deleted_at IS NULL", fullFields), email,
+		fmt.Sprintf("SELECT %s FROM contacts WHERE email=$1 AND deleted_at IS NULL AND organization_id=$2", fullFields), email, organization_id,
 	).Scan(r.scanFull(contact)...)
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -121,7 +121,7 @@ func (r *contactRepo) Update(ctx context.Context, c *entity.Contact) error {
 		validate(c.CompanyName), validate(c.JobTitle), validate(c.Department),
 		validate(c.Street), validate(c.Number), validate(c.Complement), validate(c.District),
 		validate(c.City), validate(c.State), validate(c.ZipCode), validate(c.Country),
-		c.Status, c.Source, c.Tags, validate(c.Notes), c.AssignedToID, c.UpdatedByID, c.ID,
+		c.Status, c.Source, c.Tags, validate(c.Notes), c.AssignedToID, c.UpdatedByID, c.UUID,
 	)
 	if err != nil {
 		return err
@@ -176,7 +176,7 @@ func (r *contactRepo) ListPaginated(ctx context.Context, f ContactFilters, page,
 	}, nil
 }
 
-func (r *contactRepo) Search(ctx context.Context, term string, f ContactFilters) ([]*entity.Contact, error) {
+func (r *contactRepo) Search(ctx context.Context, term string, f ContactFilters, organization_id uuid.UUID) ([]*entity.Contact, error) {
 	q := r.buildQuery(listFields, f, "", 100, 0)
 	q.addSearch(term)
 	q.order = "CASE WHEN full_name ILIKE $1 THEN 1 WHEN email ILIKE $1 THEN 2 WHEN company_name ILIKE $1 THEN 3 ELSE 4 END,full_name"
@@ -222,6 +222,9 @@ func (r *contactRepo) buildQuery(fields string, f ContactFilters, order string, 
 }
 
 func (q *query) add(cond string, val interface{}) {
+	if val == nil {
+		return
+	}
 	q.where += fmt.Sprintf(" AND "+cond, len(q.args)+1)
 	q.args = append(q.args, val)
 }
@@ -271,7 +274,7 @@ func (r *contactRepo) normalize(c *entity.Contact) {
 
 func (r *contactRepo) scanFull(c *entity.Contact) []interface{} {
 	return []interface{}{
-		&c.ID, &c.Type, &c.FirstName, &c.LastName, &c.FullName,
+		&c.ID, &c.UUID, &c.OrganizationID, &c.Type, &c.FirstName, &c.LastName, &c.FullName,
 		&c.Email, &c.Phone, &c.MobilePhone, &c.AlternateEmail,
 		&c.CompanyName, &c.JobTitle, &c.Department,
 		&c.Street, &c.Number, &c.Complement, &c.District,
@@ -284,7 +287,7 @@ func (r *contactRepo) scanFull(c *entity.Contact) []interface{} {
 
 func (r *contactRepo) scanListDest(c *entity.Contact) []interface{} {
 	return []interface{}{
-		&c.ID, &c.Type, &c.FirstName, &c.LastName, &c.FullName,
+		&c.ID, &c.UUID, &c.OrganizationID, &c.Type, &c.FirstName, &c.LastName, &c.FullName,
 		&c.Email, &c.Phone, &c.MobilePhone, &c.CompanyName, &c.JobTitle,
 		&c.Status, &c.Source, &c.City, &c.State, &c.Country,
 		&c.AssignedToID, &c.CreatedAt, &c.UpdatedAt,

@@ -8,59 +8,41 @@ import (
 )
 
 type CreateOrganizationRequest struct {
-	Name       string                     `json:"name" validate:"required"`
-	Slug       string                     `json:"slug" validate:"required"`
-	Email      string                     `json:"email" validate:"email"`
-	Phone      string                     `json:"phone"`
-	Website    string                     `json:"website"`
-	Street     string                     `json:"street"`
-	Number     string                     `json:"number"`
-	Complement string                     `json:"complement"`
-	District   string                     `json:"district"`
-	City       string                     `json:"city"`
-	State      string                     `json:"state"`
-	ZipCode    string                     `json:"zip_code"`
-	Country    string                     `json:"country"`
-	DocumentID      string                     `json:"tax_id"`
-	Industry   string                     `json:"industry"`
-	Plan       entity.OrganizationPlan    `json:"plan"`
-	MaxUsers   int                        `json:"max_users"`
-	MaxContacts int                       `json:"max_contacts"`
-	Settings   map[string]interface{}     `json:"settings"`
+	Name       string                  `json:"name" validate:"required"`
+	Slug       string                  `json:"slug" validate:"required"`
+	Email      string                  `json:"email" validate:"email"`
+	Phone      string                  `json:"phone"`
+	Website    string                  `json:"website"`
+	DocumentID string                  `json:"document_id"`
+	Industry   string                  `json:"industry"`
+	Plan       entity.OrganizationPlan `json:"plan"`
+	Settings   map[string]interface{}  `json:"settings"`
 }
 
 func (r *CreateOrganizationRequest) ToEntity() *entity.Organization {
 	return &entity.Organization{
-		Name:        r.Name,
-		Slug:        r.Slug,
-		Email:       r.Email,
-		Phone:       r.Phone,
-		Website:     r.Website,
-		DocumentID:       r.DocumentID,
-		Industry:    r.Industry,
-		Plan:        r.Plan,
-		Settings:    r.Settings,
-		IsActive:    true,
+		Name:       r.Name,
+		Slug:       r.Slug,
+		Email:      r.Email,
+		Phone:      r.Phone,
+		Website:    r.Website,
+		DocumentID: r.DocumentID,
+		Industry:   r.Industry,
+		Plan:       r.Plan,
+		Settings:   r.Settings,
+		IsActive:   true,
 	}
 }
 
 type UpdateOrganizationRequest struct {
-	Name       *string                 `json:"name"`
-	Slug       *string                 `json:"slug"`
-	Email      *string                 `json:"email"`
-	Phone      *string                 `json:"phone"`
-	Website    *string                 `json:"website"`
-	Street     *string                 `json:"street"`
-	Number     *string                 `json:"number"`
-	Complement *string                 `json:"complement"`
-	District   *string                 `json:"district"`
-	City       *string                 `json:"city"`
-	State      *string                 `json:"state"`
-	ZipCode    *string                 `json:"zip_code"`
-	Country    *string                 `json:"country"`
-	DocumentID      *string                 `json:"tax_id"`
-	Industry   *string                 `json:"industry"`
-	Settings   map[string]interface{}  `json:"settings"`
+	Name       *string                `json:"name"`
+	Slug       *string                `json:"slug"`
+	Email      *string                `json:"email"`
+	Phone      *string                `json:"phone"`
+	Website    *string                `json:"website"`
+	DocumentID *string                `json:"document_id"`
+	Industry   *string                `json:"industry"`
+	Settings   map[string]interface{} `json:"settings"`
 }
 
 func (r *UpdateOrganizationRequest) UpdateEntity(org *entity.Organization) {
@@ -91,46 +73,35 @@ func (r *UpdateOrganizationRequest) UpdateEntity(org *entity.Organization) {
 }
 
 type OrganizationResponse struct {
-	ID                 uuid.UUID              `json:"id"`
-	Name               string                 `json:"name"`
-	Slug               string                 `json:"slug"`
-	Email              string                 `json:"email"`
-	Phone              string                 `json:"phone"`
-	Website            string                 `json:"website"`
-	Street             string                 `json:"street"`
-	Number             string                 `json:"number"`
-	Complement         string                 `json:"complement"`
-	District           string                 `json:"district"`
-	City               string                 `json:"city"`
-	State              string                 `json:"state"`
-	ZipCode            string                 `json:"zip_code"`
-	Country            string                 `json:"country"`
-	DocumentID              string                 `json:"tax_id"`
-	Industry           string                 `json:"industry"`
+	ID                 uuid.UUID               `json:"id"`
+	Name               string                  `json:"name"`
+	Slug               string                  `json:"slug"`
+	Email              string                  `json:"email"`
+	Phone              string                  `json:"phone"`
+	Website            string                  `json:"website"`
+	DocumentID         string                  `json:"document_id"`
+	Industry           string                  `json:"industry"`
 	Plan               entity.OrganizationPlan `json:"plan"`
-	MaxUsers           int                    `json:"max_users"`
-	MaxContacts        int                    `json:"max_contacts"`
-	SubscriptionEndsAt *time.Time             `json:"subscription_ends_at,omitempty"`
-	Settings           map[string]interface{} `json:"settings"`
-	IsActive           bool                   `json:"is_active"`
-	CreatedAt          time.Time              `json:"created_at"`
-	UpdatedAt          time.Time              `json:"updated_at"`
+	Settings           map[string]interface{}  `json:"settings"`
+	IsActive           bool                    `json:"is_active"`
+	CreatedAt          time.Time               `json:"created_at"`
+	UpdatedAt          time.Time               `json:"updated_at"`
 }
 
 func NewOrganizationResponse(org *entity.Organization) *OrganizationResponse {
 	return &OrganizationResponse{
-		ID:                 org.ID,
-		Name:               org.Name,
-		Slug:               org.Slug,
-		Email:              org.Email,
-		Phone:              org.Phone,
-		Website:            org.Website,
-		DocumentID:              org.DocumentID,
-		Industry:           org.Industry,
-		Plan:               org.Plan,
-		Settings:           org.Settings,
-		IsActive:           org.IsActive,
-		CreatedAt:          org.CreatedAt,
-		UpdatedAt:          org.UpdatedAt,
+		ID:         org.UUID,
+		Name:       org.Name,
+		Slug:       org.Slug,
+		Email:      org.Email,
+		Phone:      org.Phone,
+		Website:    org.Website,
+		DocumentID: org.DocumentID,
+		Industry:   org.Industry,
+		Plan:       org.Plan,
+		Settings:   org.Settings,
+		IsActive:   org.IsActive,
+		CreatedAt:  org.CreatedAt,
+		UpdatedAt:  org.UpdatedAt,
 	}
 }

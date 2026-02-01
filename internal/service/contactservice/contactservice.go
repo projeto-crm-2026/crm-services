@@ -11,8 +11,8 @@ import (
 
 type ContactService interface {
 	Create(ctx context.Context, contact *entity.Contact) (*entity.Contact, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*entity.Contact, error)
-	GetByEmail(ctx context.Context, email string) (*entity.Contact, error)
+	GetByID(ctx context.Context, id uuid.UUID, organization_id uuid.UUID) (*entity.Contact, error)
+	GetByEmail(ctx context.Context, email string, organization_id uuid.UUID) (*entity.Contact, error)
 	Update(ctx context.Context, contact *entity.Contact) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
@@ -20,7 +20,7 @@ type ContactService interface {
 	List(ctx context.Context, filters repo.ContactFilters) ([]*entity.Contact, error)
 	ListPaginated(ctx context.Context, filters repo.ContactFilters, page, pageSize int) (*repo.PaginatedResult[entity.Contact], error)
 
-	Search(ctx context.Context, query string, filters repo.ContactFilters) ([]*entity.Contact, error)
+	Search(ctx context.Context, query string, filters repo.ContactFilters, organization_id uuid.UUID) ([]*entity.Contact, error)
 }
 
 type contactService struct {
@@ -47,10 +47,10 @@ func (s *contactService) Create(ctx context.Context, contact *entity.Contact) (*
 	return contact, nil
 }
 
-func (s *contactService) GetByID(ctx context.Context, id uuid.UUID) (*entity.Contact, error) {
+func (s *contactService) GetByID(ctx context.Context, id uuid.UUID, organization_id uuid.UUID) (*entity.Contact, error) {
 	contact := &entity.Contact{}
 
-	contact, err := s.repo.GetByID(ctx, id)
+	contact, err := s.repo.GetByID(ctx, id, organization_id)
 
 	if err != nil {
 		s.logger.Error("no contact exists with this ID", "error", err)
@@ -60,10 +60,10 @@ func (s *contactService) GetByID(ctx context.Context, id uuid.UUID) (*entity.Con
 	return contact, nil
 }
 
-func (s *contactService) GetByEmail(ctx context.Context, email string) (*entity.Contact, error) {
+func (s *contactService) GetByEmail(ctx context.Context, email string, organization_id uuid.UUID) (*entity.Contact, error) {
 	contact := &entity.Contact{}
 
-	contact, err := s.repo.GetByEmail(ctx, email)
+	contact, err := s.repo.GetByEmail(ctx, email, organization_id)
 
 	if err != nil {
 		s.logger.Error("no contact exists with this email", "error", err)
@@ -134,8 +134,8 @@ func (s *contactService) ListPaginated(ctx context.Context, filters repo.Contact
 	return result, nil
 }
 
-func (s *contactService) Search(ctx context.Context, query string, filters repo.ContactFilters) ([]*entity.Contact, error) {
-	contacts, err := s.repo.Search(ctx, query, filters)
+func (s *contactService) Search(ctx context.Context, query string, filters repo.ContactFilters, organization_id uuid.UUID) ([]*entity.Contact, error) {
+	contacts, err := s.repo.Search(ctx, query, filters, organization_id)
 	if err != nil {
 		s.logger.Error("failed to search contacts", "query", query, "error", err)
 		return nil, err

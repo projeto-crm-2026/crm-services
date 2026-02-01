@@ -11,28 +11,29 @@ import (
 )
 
 type CreateContactRequest struct {
-	Type         string   `json:"type"`
-	FirstName    string   `json:"first_name"`
-	LastName     string   `json:"last_name"`
-	CompanyName  string   `json:"company_name"`
-	Email        string   `json:"email"`
-	Phone        string   `json:"phone"`
-	MobilePhone  string   `json:"mobile_phone"`
-	JobTitle     string   `json:"job_title"`
-	Department   string   `json:"department"`
-	Street       string   `json:"street"`
-	Number       string   `json:"number"`
-	Complement   string   `json:"complement"`
-	District     string   `json:"district"`
-	City         string   `json:"city"`
-	State        string   `json:"state"`
-	ZipCode      string   `json:"zip_code"`
-	Country      string   `json:"country"`
-	Status       string   `json:"status"`
-	Source       string   `json:"source"`
-	Tags         []string `json:"tags"`
-	Notes        string   `json:"notes"`
-	AssignedToID *uint    `json:"assigned_to_id"`
+	Type           string   `json:"type"`
+	OrganizationID string   `json:"organization_id"`
+	FirstName      string   `json:"first_name"`
+	LastName       string   `json:"last_name"`
+	CompanyName    string   `json:"company_name"`
+	Email          string   `json:"email"`
+	Phone          string   `json:"phone"`
+	MobilePhone    string   `json:"mobile_phone"`
+	JobTitle       string   `json:"job_title"`
+	Department     string   `json:"department"`
+	Street         string   `json:"street"`
+	Number         string   `json:"number"`
+	Complement     string   `json:"complement"`
+	District       string   `json:"district"`
+	City           string   `json:"city"`
+	State          string   `json:"state"`
+	ZipCode        string   `json:"zip_code"`
+	Country        string   `json:"country"`
+	Status         string   `json:"status"`
+	Source         string   `json:"source"`
+	Tags           []string `json:"tags"`
+	Notes          string   `json:"notes"`
+	AssignedToID   *uint    `json:"assigned_to_id"`
 }
 
 type UpdateContactRequest struct {
@@ -80,7 +81,7 @@ type ContactResponse struct {
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	AssignedToID   *uint     `json:"assigned_to_id,omitempty"`
-	CreatedByID    uint      `json:"created_by_id"`
+	CreatedByID    *uint     `json:"created_by_id,omitempty"`
 }
 
 type Address struct {
@@ -123,14 +124,17 @@ func (r CreateContactRequest) Validate() error {
 }
 
 func (r CreateContactRequest) ToEntity() *entity.Contact {
+	orgID, _ := uuid.Parse(r.OrganizationID)
+
 	c := &entity.Contact{
-		Type:         entity.ContactType(r.Type),
-		FirstName:    r.FirstName,
-		LastName:     r.LastName,
-		Status:       entity.ContactStatus(r.Status),
-		Source:       entity.ContactSource(r.Source),
-		Tags:         r.Tags,
-		AssignedToID: r.AssignedToID,
+		OrganizationID: orgID,
+		Type:           entity.ContactType(r.Type),
+		FirstName:      r.FirstName,
+		LastName:       r.LastName,
+		Status:         entity.ContactStatus(r.Status),
+		Source:         entity.ContactSource(r.Source),
+		Tags:           r.Tags,
+		AssignedToID:   r.AssignedToID,
 	}
 	if c.Status == "" {
 		c.Status = entity.ContactStatusLead
@@ -181,7 +185,7 @@ func (r UpdateContactRequest) UpdateEntity(c *entity.Contact) {
 
 func NewContactResponse(c *entity.Contact) ContactResponse {
 	return ContactResponse{
-		ID:             c.ID,
+		ID:             c.UUID,
 		Type:           string(c.Type),
 		FullName:       c.FullName,
 		FirstName:      c.FirstName,

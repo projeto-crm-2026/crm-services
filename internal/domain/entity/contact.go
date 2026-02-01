@@ -37,11 +37,14 @@ const (
 )
 
 type Contact struct {
-	ID             uuid.UUID      `gorm:"type:uuid;not null;unique;default:gen_random_uuid()"`
+	gorm.Model
+
+	UUID           uuid.UUID      `gorm:"type:uuid;not null;unique;default:gen_random_uuid()"`
+	OrganizationID uuid.UUID      `gorm:"type:uuid;not null;index"`
 	Type           ContactType    `gorm:"type:text"`
 	FirstName      string         `gorm:"type:text"`
 	LastName       string         `gorm:"type:text"`
-	FullName       string         `gorm:"type:text;notesse  null;index"`
+	FullName       string         `gorm:"type:text;not null;index"`
 	Email          sql.NullString `gorm:"type:text;index"`
 	Phone          sql.NullString `gorm:"type:varchar(32)"`
 	MobilePhone    sql.NullString `gorm:"type:varchar(32)"`
@@ -65,12 +68,16 @@ type Contact struct {
 	UpdatedAt      time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt      gorm.DeletedAt `gorm:"index"`
 
-	AssignedToID *uint `gorm:"index"` // para salvar a pessoa responsável pelo contato AE/SDR/Vendedor
-	AssignedTo   *User `gorm:"foreignKey:AssignedToID;constraint:OnDelete:SET NULL"`
-	CreatedByID  uint  `gorm:"not null"`
-	CreatedBy    User  `gorm:"foreignKey:CreatedByID;constraint:OnDelete:RESTRICT"`
-	UpdatedByID  *uint // para dps salvar a última pessoa que atualizou o contato dentro da plataforma
-	UpdatedBy    *User `gorm:"foreignKey:UpdatedByID;constraint:OnDelete:SET NULL"`
+	AssignedToID *uint `gorm:"index"`
+	AssignedTo   *User `gorm:"foreignKey:AssignedToID;references:ID;constraint:OnDelete:SET NULL"`
+
+	CreatedByID  *uint `gorm:"index"`
+	CreatedBy    *User `gorm:"foreignKey:CreatedByID;references:ID;constraint:OnDelete:SET NULL"`
+
+	UpdatedByID  *uint `gorm:"index"`
+	UpdatedBy    *User `gorm:"foreignKey:UpdatedByID;references:ID;constraint:OnDelete:SET NULL"`
+
+	Organization *Organization `gorm:"foreignKey:OrganizationID;references:UUID"`
 }
 
 func (Contact) TableName() string {

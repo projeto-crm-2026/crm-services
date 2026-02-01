@@ -25,12 +25,25 @@ func NewContactHandler(svc contactservice.ContactService) *ContactHandler {
 func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var request model.CreateContactRequest
 
+	claims, ok := middleware.GetUserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if claims.OrganizationID == nil {
+		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		return
+	}
+
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "invalid payload", http.StatusBadRequest)
 		return
 	}
 
-	contact, err := h.service.Create(r.Context(), request.ToEntity())
+	entity := request.ToEntity()
+	entity.OrganizationID = *claims.OrganizationID
+	contact, err := h.service.Create(r.Context(), entity)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -58,7 +71,7 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	organization_id := *claims.OrganizationID
-	
+
 	rawId := r.PathValue("id")
 	id, err := uuid.Parse(rawId)
 	if err != nil {
@@ -161,6 +174,19 @@ func (h *ContactHandler) GetByEmail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ContactHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.GetUserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if claims.OrganizationID == nil {
+		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		return
+	}
+
+	organization_id := *claims.OrganizationID
+
 	rawId := r.PathValue("id")
 	id, err := uuid.Parse(rawId)
 	if err != nil {
@@ -168,7 +194,7 @@ func (h *ContactHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.service.Delete(r.Context(), id)
+	_, err = h.service.GetByID(r.Context(), id, organization_id)
 	if err != nil {
 		http.Error(w, "contact not found", http.StatusNotFound)
 		return
@@ -187,6 +213,19 @@ func (h *ContactHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ContactHandler) SoftDelete(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.GetUserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if claims.OrganizationID == nil {
+		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		return
+	}
+
+	organization_id := *claims.OrganizationID
+
 	rawId := r.PathValue("id")
 	id, err := uuid.Parse(rawId)
 	if err != nil {
@@ -194,7 +233,7 @@ func (h *ContactHandler) SoftDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.service.SoftDelete(r.Context(), id)
+	_, err = h.service.GetByID(r.Context(), id, organization_id)
 	if err != nil {
 		http.Error(w, "contact not found", http.StatusNotFound)
 		return

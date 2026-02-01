@@ -57,7 +57,7 @@ const (
 		company_name,job_title,department,street,number,complement,district,city,state,zip_code,
 		country,status,source,tags,notes,assigned_to_id,created_by_id,updated_by_id,created_at,updated_at`
 
-	listFields = `id,uuid,type,first_name,last_name,full_name,email,phone,mobile_phone,company_name,
+	listFields = `id,uuid,organization_id,type,first_name,last_name,full_name,email,phone,mobile_phone,company_name,
 		job_title,status,source,city,state,country,assigned_to_id,created_at,updated_at`
 )
 
@@ -115,7 +115,7 @@ func (r *contactRepo) Update(ctx context.Context, c *entity.Contact) error {
 			street=$12,number=$13,complement=$14,district=$15,city=$16,state=$17,zip_code=$18,
 			country=$19,status=$20,source=$21,tags=$22,notes=$23,assigned_to_id=$24,
 			updated_by_id=$25,updated_at=NOW()
-		WHERE id=$26 AND deleted_at IS NULL`,
+		WHERE uuid=$26 AND deleted_at IS NULL`,
 		c.Type, c.FirstName, c.LastName, c.FullName,
 		validate(c.Email), validate(c.Phone), validate(c.MobilePhone), validate(c.AlternateEmail),
 		validate(c.CompanyName), validate(c.JobTitle), validate(c.Department),
@@ -133,11 +133,11 @@ func (r *contactRepo) Update(ctx context.Context, c *entity.Contact) error {
 }
 
 func (r *contactRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.exec(ctx, "DELETE FROM contacts WHERE id=$1", id)
+	return r.exec(ctx, "DELETE FROM contacts WHERE uuid=$1", id)
 }
 
 func (r *contactRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
-	return r.exec(ctx, "UPDATE contacts SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL", id)
+	return r.exec(ctx, "UPDATE contacts SET deleted_at=NOW() WHERE uuid=$1 AND deleted_at IS NULL", id)
 }
 
 func (r *contactRepo) List(ctx context.Context, f ContactFilters) ([]*entity.Contact, error) {
@@ -178,6 +178,7 @@ func (r *contactRepo) ListPaginated(ctx context.Context, f ContactFilters, page,
 
 func (r *contactRepo) Search(ctx context.Context, term string, f ContactFilters, organization_id uuid.UUID) ([]*entity.Contact, error) {
 	q := r.buildQuery(listFields, f, "", 100, 0)
+	q.add("organization_id=$%d", organization_id)
 	q.addSearch(term)
 	q.order = "CASE WHEN full_name ILIKE $1 THEN 1 WHEN email ILIKE $1 THEN 2 WHEN company_name ILIKE $1 THEN 3 ELSE 4 END,full_name"
 

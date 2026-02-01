@@ -14,13 +14,13 @@ type JWTPackage interface {
 }
 
 type Claims struct {
-	UserID         uint      `json:"user_id"`
-	Email          string    `json:"email"`
-	OrganizationID uuid.UUID `json:"organization_id"`
+	UserID         uint       `json:"user_id"`
+	Email          string     `json:"email"`
+	OrganizationID *uuid.UUID `json:"organization_id,omitempty"`
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(userID uint, email string, organizationID uuid.UUID, jwtSecret string) (string, error) {
+func GenerateToken(userID uint, email string, organization_id *uuid.UUID, jwtSecret string) (string, error) {
 	if jwtSecret == "" {
 		jwtSecret = "test123"
 	}
@@ -29,7 +29,7 @@ func GenerateToken(userID uint, email string, organizationID uuid.UUID, jwtSecre
 	claims := &Claims{
 		UserID:         userID,
 		Email:          email,
-		OrganizationID: organizationID,
+		OrganizationID: organization_id,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

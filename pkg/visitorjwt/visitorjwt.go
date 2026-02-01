@@ -1,4 +1,4 @@
-package vistorjwt
+package visitorjwt
 
 import (
 	"time"

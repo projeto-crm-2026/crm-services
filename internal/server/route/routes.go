@@ -85,7 +85,7 @@ func New(cfg Config) http.Handler {
 		r.Get("/contacts/{id}", cfg.Handlers.Contact.GetByID)
 		r.Get("/contacts/email/{email}", cfg.Handlers.Contact.GetByEmail)
 
-		r.Patch("/contacts/${id}", cfg.Handlers.Contact.Update)
+		r.Patch("/contacts/{id}", cfg.Handlers.Contact.Update)
 
 		r.Delete("/contacts/{id}", cfg.Handlers.Contact.SoftDelete)
 		r.Delete("/contacts/{id}/permanent", cfg.Handlers.Contact.Delete)

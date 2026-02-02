@@ -63,7 +63,7 @@ func (s *userService) RegisterUser(ctx context.Context, name, email, password st
 		return "", nil, err
 	}
 
-	s.logger.Info("user registered successfully", "userID", user.ID, "token", token)
+	s.logger.Info("user registered successfully", "userID", user.ID)
 	return token, user, nil
 }
 

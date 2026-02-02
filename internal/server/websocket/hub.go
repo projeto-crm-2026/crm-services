@@ -53,7 +53,7 @@ func (h *Hub) Run() {
 			h.mu.Unlock()
 
 		case msg := <-h.broadcast:
-			h.mu.RLock()
+			h.mu.Lock()
 			if clients, ok := h.chatRooms[msg.ChatID]; ok {
 				for client := range clients {
 					select {
@@ -65,7 +65,7 @@ func (h *Hub) Run() {
 					}
 				}
 			}
-			h.mu.RUnlock()
+			h.mu.Unlock()
 		}
 	}
 }

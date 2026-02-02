@@ -72,5 +72,41 @@ func New(cfg Config) http.Handler {
 		r.Delete("/webhooks/tokens/{tokenID}", cfg.Handlers.Webhook.DeleteIncomingToken)
 	})
 
+	// contacts
+	r.Group(func(r chi.Router) {
+		r.Use(cfg.Middlewares.ContentJSON)
+		r.Use(cfg.Middlewares.JWT)
+		r.Use(cfg.RateLimiters.API)
+
+		r.Post("/contacts", cfg.Handlers.Contact.Create)
+
+		r.Get("/contacts", cfg.Handlers.Contact.List)
+		r.Get("/contacts/search", cfg.Handlers.Contact.Search)
+		r.Get("/contacts/{id}", cfg.Handlers.Contact.GetByID)
+		r.Get("/contacts/email/{email}", cfg.Handlers.Contact.GetByEmail)
+
+		r.Patch("/contacts/${id}", cfg.Handlers.Contact.Update)
+
+		r.Delete("/contacts/{id}", cfg.Handlers.Contact.SoftDelete)
+		r.Delete("/contacts/{id}/permanent", cfg.Handlers.Contact.Delete)
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(cfg.Middlewares.ContentJSON)
+		r.Use(cfg.Middlewares.JWT)
+		r.Use(cfg.RateLimiters.API)
+
+		r.Post("/organizations", cfg.Handlers.Organization.Create)
+		r.Post("/organizations/{id}/restore", cfg.Handlers.Organization.Restore)
+
+		r.Get("/organizations/{id}", cfg.Handlers.Organization.GetByID)
+		r.Get("/organizations/slug/{slug}", cfg.Handlers.Organization.GetBySlug)
+
+		r.Patch("/organizations/{id}", cfg.Handlers.Organization.Update)
+
+		r.Delete("/organizations/{id}", cfg.Handlers.Organization.SoftDelete)
+		r.Delete("/organizations/{id}/permanent", cfg.Handlers.Organization.Delete)
+	})
+
 	return r
 }

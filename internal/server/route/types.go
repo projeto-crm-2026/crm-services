@@ -7,11 +7,13 @@ import (
 )
 
 type Handlers struct {
-	Health  *handler.HealthHandler
-	User    *handler.UserHandler
-	Chat    *handler.ChatHandler
-	Widget  *handler.WidgetHandler
-	Webhook *handler.WebhookHandler
+	Health       *handler.HealthHandler
+	User         *handler.UserHandler
+	Chat         *handler.ChatHandler
+	Widget       *handler.WidgetHandler
+	Webhook      *handler.WebhookHandler
+	Contact      *handler.ContactHandler
+	Organization *handler.OrganizationHandler
 }
 
 type Middlewares struct {

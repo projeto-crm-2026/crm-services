@@ -57,7 +57,7 @@ func (s *userService) RegisterUser(ctx context.Context, name, email, password st
 		return "", nil, err
 	}
 
-	token, err := jwt.GenerateToken(user.ID, user.Email, s.jwtConfig.JWTSecret)
+	token, err := jwt.GenerateToken(user.ID, user.Email, nil, s.jwtConfig.JWTSecret)
 	if err != nil {
 		s.logger.Error("failed to generate token", "error", err)
 		return "", nil, err
@@ -84,7 +84,7 @@ func (s *userService) LoginUser(ctx context.Context, email, password string) (st
 		return "", nil, fmt.Errorf("invalid password or email %s", email)
 	}
 
-	token, err := jwt.GenerateToken(user.ID, user.Email, s.jwtConfig.JWTSecret)
+	token, err := jwt.GenerateToken(user.ID, user.Email, nil, s.jwtConfig.JWTSecret)
 	if err != nil {
 		s.logger.Error("failed to generate token", "error", err)
 		return "", nil, err

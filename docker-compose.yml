@@ -20,6 +20,15 @@ services:
       retries: 5
       start_period: 10s
 
+  crm-services-mailpit:
+    image: axllent/mailpit:latest
+    container_name: crm-services-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - app-network
+
   crm-services-core:
     build:
       context: .
@@ -33,11 +42,19 @@ services:
       - DB_NAME=${DB_NAME:-crm_services_db}
       - JWT_SECRET=${JWT_SECRET:-teste}
       - CRYPTO_AES_KEY=${CRYPTO_AES_KEY:-12345678901234567890123456789012}
+      - SMTP_HOST=${SMTP_HOST:-crm-services-mailpit}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-noreply@crm-services.local}
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost:8080}
     ports:
       - "8080:8080"
     depends_on:
       crm-services-postgres-docker:
         condition: service_healthy
+      crm-services-mailpit:
+        condition: service_started
     networks:
       - app-network
     restart: unless-stopped

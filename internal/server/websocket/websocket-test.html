@@ -45,6 +45,11 @@
       color: #9c27b0;
     }
 
+    .panel.invite h2 {
+      border-color: #ff5722;
+      color: #ff5722;
+    }
+
     .panel.apikey h2 {
       border-color: #ff9800;
       color: #ff9800;
@@ -68,6 +73,11 @@
     .panel.webhook h2 {
       border-color: #00bcd4;
       color: #00bcd4;
+    }
+
+    .panel.members h2 {
+      border-color: #795548;
+      color: #795548;
     }
 
     .form-group {
@@ -146,6 +156,14 @@
 
     .btn-teal {
       background: #009688;
+    }
+
+    .btn-deeporange {
+      background: #ff5722;
+    }
+
+    .btn-brown {
+      background: #795548;
     }
 
     .status {
@@ -281,6 +299,49 @@
     .checkbox-group input[type="checkbox"] {
       width: auto;
     }
+
+    .member-card {
+      background: #f5f5f5;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 8px;
+      border-left: 4px solid #795548;
+    }
+
+    .member-card .name {
+      font-weight: bold;
+      color: #333;
+    }
+
+    .member-card .email {
+      color: #666;
+      font-size: 13px;
+    }
+
+    .member-card .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      color: white;
+      margin-top: 4px;
+    }
+
+    .badge.admin {
+      background: #9c27b0;
+    }
+
+    .badge.member {
+      background: #2196f3;
+    }
+
+    .badge.active {
+      background: #4caf50;
+    }
+
+    .badge.pending {
+      background: #ff9800;
+    }
   </style>
 </head>
 
@@ -293,7 +354,7 @@
       <h2>1. Authentication</h2>
       <div class="step">
         <span class="step-number">Step 1</span>
-        Register or Login to get auth cookie
+        Register (creates admin + organization) or Login
       </div>
 
       <div id="auth-status" class="status info">Not authenticated</div>
@@ -310,18 +371,87 @@
         <label>Password</label>
         <input type="password" id="auth-password" placeholder="password" value="password123">
       </div>
+      <div class="form-group">
+        <label>Organization Name (for register)</label>
+        <input type="text" id="auth-org-name" placeholder="My Company" value="Test Organization">
+      </div>
 
-      <button class="btn-purple" onclick="register()">Register</button>
+      <button class="btn-purple" onclick="register()">Register (Admin)</button>
       <button class="btn-purple" onclick="login()">Login</button>
+      <button class="btn-red" onclick="logout()">Logout</button>
 
       <div class="data-display" id="auth-output">Response will appear here...</div>
     </div>
 
-    <!-- API Key Panel -->
-    <div class="panel apikey">
-      <h2>2. API Key Management</h2>
+    <!-- Invite & Members Panel -->
+    <div class="panel invite">
+      <h2>2. Invite Members</h2>
       <div class="step">
         <span class="step-number">Step 2</span>
+        Invite users to your organization (admin only)
+      </div>
+
+      <div id="invite-status" class="status info">Login as admin first</div>
+
+      <div class="form-group">
+        <label>Invitee Name</label>
+        <input type="text" id="invite-name" placeholder="Jane Doe" value="Invited User">
+      </div>
+      <div class="form-group">
+        <label>Invitee Email</label>
+        <input type="email" id="invite-email" placeholder="jane@example.com" value="invited@example.com">
+      </div>
+
+      <button class="btn-deeporange" onclick="inviteUser()">Send Invite</button>
+
+      <div class="data-display" id="invite-output">Response will appear here...</div>
+
+      <hr>
+
+      <h3>Accept Invite (Public)</h3>
+      <div class="step">
+        <span class="step-number">New User</span>
+        Set password to activate account
+      </div>
+
+      <div id="accept-status" class="status info">Paste invite token from email</div>
+
+      <div class="form-group">
+        <label>Invite Token</label>
+        <input type="text" id="accept-token" placeholder="inv_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+      </div>
+      <div class="form-group">
+        <label>New Password (min 8 chars)</label>
+        <input type="password" id="accept-password" placeholder="newpassword123" value="newpassword123">
+      </div>
+
+      <button class="btn-deeporange" onclick="acceptInvite()">Activate Account</button>
+
+      <div class="data-display" id="accept-output">Response will appear here...</div>
+    </div>
+
+    <!-- Members Panel -->
+    <div class="panel members">
+      <h2>3. Organization Members</h2>
+      <div class="step">
+        <span class="step-number">Step 3</span>
+        View all members of your organization
+      </div>
+
+      <div id="members-status" class="status info">Login first to view members</div>
+
+      <button class="btn-brown" onclick="listMembers()">List Members</button>
+
+      <div id="members-list" style="margin-top: 10px;"></div>
+
+      <div class="data-display" id="members-output">Response will appear here...</div>
+    </div>
+
+    <!-- API Key Panel -->
+    <div class="panel apikey">
+      <h2>4. API Key Management</h2>
+      <div class="step">
+        <span class="step-number">Step 4</span>
         Create an API Key for your widget domain
       </div>
 
@@ -349,9 +479,9 @@
 
     <!-- Widget Init Panel -->
     <div class="panel widget">
-      <h2>3. Widget Initialization</h2>
+      <h2>5. Widget Initialization</h2>
       <div class="step">
-        <span class="step-number">Step 3</span>
+        <span class="step-number">Step 5</span>
         Initialize widget session with API key
       </div>
 
@@ -387,9 +517,9 @@
 
     <!-- CRM Agent Panel -->
     <div class="panel crm">
-      <h2>4. CRM Agent (WebSocket)</h2>
+      <h2>6. CRM Agent (WebSocket)</h2>
       <div class="step">
-        <span class="step-number">Step 4</span>
+        <span class="step-number">Step 6</span>
         Connect as CRM agent to chat
       </div>
 
@@ -417,9 +547,9 @@
 
     <!-- Widget Client Panel -->
     <div class="panel client">
-      <h2>5. Widget Client (WebSocket)</h2>
+      <h2>7. Widget Client (WebSocket)</h2>
       <div class="step">
-        <span class="step-number">Step 5</span>
+        <span class="step-number">Step 7</span>
         Connect as visitor to chat
       </div>
 
@@ -448,9 +578,9 @@
 
     <!-- Webhook Outgoing Panel -->
     <div class="panel webhook">
-      <h2>6. Outgoing Webhooks</h2>
+      <h2>8. Outgoing Webhooks</h2>
       <div class="step">
-        <span class="step-number">Step 6</span>
+        <span class="step-number">Step 8</span>
         Configure webhooks to receive events
       </div>
 
@@ -498,9 +628,9 @@
 
     <!-- Incoming Webhook Panel -->
     <div class="panel webhook">
-      <h2>7. Incoming Webhooks</h2>
+      <h2>9. Incoming Webhooks</h2>
       <div class="step">
-        <span class="step-number">Step 7</span>
+        <span class="step-number">Step 9</span>
         Send messages via webhook
       </div>
 
@@ -547,7 +677,7 @@
 
     <!-- Quick Test Panel -->
     <div class="panel" style="grid-column: span 1;">
-      <h2>8. Quick Test Flow</h2>
+      <h2>10. Quick Test Flow</h2>
       <div class="step">
         <span class="step-number">Auto</span>
         Run complete flow automatically
@@ -555,6 +685,11 @@
 
       <button class="btn-purple" onclick="runFullTest()" style="width: 100%; padding: 15px; font-size: 16px;">
         Run Complete Test Flow
+      </button>
+
+      <button class="btn-deeporange" onclick="runInviteTest()"
+        style="width: 100%; padding: 15px; font-size: 16px; margin-top: 10px;">
+        Run Invite Test Flow
       </button>
 
       <button class="btn-cyan" onclick="runWebhookTest()"
@@ -566,7 +701,10 @@
 
       <h3>Test Steps:</h3>
       <ol style="font-size: 13px; color: #666;">
-        <li>Register/Login user</li>
+        <li>Register admin + organization</li>
+        <li>Invite member to organization</li>
+        <li>Accept invite (set password)</li>
+        <li>List organization members</li>
         <li>Create API Key</li>
         <li>Initialize Widget Session</li>
         <li>Create Widget Chat</li>
@@ -587,6 +725,7 @@
 
     let crmWs = null;
     let clientWs = null;
+    let lastInviteToken = null;
 
     // ===== Helper Functions =====
     function setStatus(id, message, type) {
@@ -615,15 +754,16 @@
           body: JSON.stringify({
             name: document.getElementById('auth-name').value,
             email: document.getElementById('auth-email').value,
-            password: document.getElementById('auth-password').value
+            password: document.getElementById('auth-password').value,
+            organization_name: document.getElementById('auth-org-name').value
           })
         });
 
         const data = await res.json();
         if (res.ok) {
-          setStatus('auth-status', 'Registered & logged in!', 'success');
+          setStatus('auth-status', `Registered as admin! Role: ${data.user.role}`, 'success');
           setOutput('auth-output', data);
-          log('User registered successfully');
+          log(`User registered as admin (org: ${document.getElementById('auth-org-name').value})`);
         } else {
           throw new Error(data.error || 'Registration failed');
         }
@@ -648,7 +788,7 @@
 
         const data = await res.json();
         if (res.ok) {
-          setStatus('auth-status', 'Logged in!', 'success');
+          setStatus('auth-status', `Logged in! Role: ${data.user.role}, Status: ${data.user.status}`, 'success');
           setOutput('auth-output', data);
           log('User logged in successfully');
         } else {
@@ -658,6 +798,124 @@
         setStatus('auth-status', `${err.message}`, 'error');
         setOutput('auth-output', err.message);
         log(`Login failed: ${err.message}`);
+      }
+    }
+
+    async function logout() {
+      try {
+        const res = await fetch(`${API_BASE}/logout`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+
+        if (res.ok) {
+          setStatus('auth-status', 'Logged out', 'info');
+          setOutput('auth-output', 'Logged out successfully');
+          log('User logged out');
+        } else {
+          throw new Error('Logout failed');
+        }
+      } catch (err) {
+        setStatus('auth-status', `${err.message}`, 'error');
+        log(`Logout failed: ${err.message}`);
+      }
+    }
+
+    // ===== Invite Functions =====
+    async function inviteUser() {
+      try {
+        const res = await fetch(`${API_BASE}/members/invite`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: document.getElementById('invite-name').value,
+            email: document.getElementById('invite-email').value
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          setStatus('invite-status', 'Invite sent! Check server logs for token.', 'success');
+          setOutput('invite-output', data);
+          // If the response contains the invite token (for testing), populate it
+          if (data.data && data.data.invite_token) {
+            document.getElementById('accept-token').value = data.data.invite_token;
+            lastInviteToken = data.data.invite_token;
+          }
+          log(`User invited: ${document.getElementById('invite-email').value}`);
+        } else {
+          throw new Error(data.error || data.message || 'Failed to invite user');
+        }
+      } catch (err) {
+        setStatus('invite-status', `${err.message}`, 'error');
+        setOutput('invite-output', err.message);
+        log(`Invite failed: ${err.message}`);
+      }
+    }
+
+    async function acceptInvite() {
+      try {
+        const res = await fetch(`${API_BASE}/invite/accept`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: document.getElementById('accept-token').value,
+            password: document.getElementById('accept-password').value
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          setStatus('accept-status', 'Account activated! You can now login.', 'success');
+          setOutput('accept-output', data);
+          log(`Account activated for invite token`);
+        } else {
+          throw new Error(data.error || data.message || 'Failed to accept invite');
+        }
+      } catch (err) {
+        setStatus('accept-status', `${err.message}`, 'error');
+        setOutput('accept-output', err.message);
+        log(`Accept invite failed: ${err.message}`);
+      }
+    }
+
+    // ===== Members Functions =====
+    async function listMembers() {
+      try {
+        const res = await fetch(`${API_BASE}/members`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          const members = data.members || [];
+          setStatus('members-status', `Found ${members.length} member(s)`, 'success');
+          setOutput('members-output', data);
+
+          // Render member cards
+          const container = document.getElementById('members-list');
+          container.innerHTML = '';
+          members.forEach(m => {
+            const card = document.createElement('div');
+            card.className = 'member-card';
+            card.innerHTML = `
+              <div class="name">${m.name}</div>
+              <div class="email">${m.email}</div>
+              <span class="badge ${m.role}">${m.role}</span>
+              <span class="badge ${m.status}">${m.status}</span>
+            `;
+            container.appendChild(card);
+          });
+
+          log(`Listed ${members.length} organization members`);
+        } else {
+          throw new Error(data.error || 'Failed to list members');
+        }
+      } catch (err) {
+        setStatus('members-status', `${err.message}`, 'error');
+        log(`List members failed: ${err.message}`);
       }
     }
 
@@ -825,7 +1083,6 @@
         return;
       }
 
-      // CRM agent connects via /ws/chat with auth cookie
       crmWs = new WebSocket(`${WS_BASE}/ws/chat/${chatId}?visitor_id=crm-agent`);
 
       crmWs.onopen = () => {
@@ -879,7 +1136,6 @@
         return;
       }
 
-      // Widget client connects via /ws/widget
       clientWs = new WebSocket(`${WS_BASE}/ws/widget/${chatId}?visitor_id=${visitorId}`);
 
       clientWs.onopen = () => {
@@ -1176,38 +1432,48 @@
       document.getElementById('test-log').textContent = '';
 
       try {
-        // Step 1: Register
-        log('Step 1: Registering user...');
+        // Step 1: Register admin
+        log('Step 1: Registering admin user + organization...');
         await register();
         await new Promise(r => setTimeout(r, 500));
 
-        // Step 2: Create API Key
-        log('Step 2: Creating API Key...');
+        // Step 2: Invite member
+        log('Step 2: Inviting member...');
+        await inviteUser();
+        await new Promise(r => setTimeout(r, 500));
+
+        // Step 3: List members (should show admin + pending member)
+        log('Step 3: Listing organization members...');
+        await listMembers();
+        await new Promise(r => setTimeout(r, 500));
+
+        // Step 4: Create API Key
+        log('Step 4: Creating API Key...');
         await createAPIKey();
         await new Promise(r => setTimeout(r, 500));
 
-        // Step 3: Init Widget
-        log('Step 3: Initializing Widget...');
+        // Step 5: Init Widget
+        log('Step 5: Initializing Widget...');
         await initWidget();
         await new Promise(r => setTimeout(r, 500));
 
-        // Step 4: Create Chat
-        log('Step 4: Creating Widget Chat...');
+        // Step 6: Create Chat
+        log('Step 6: Creating Widget Chat...');
         await createWidgetChat();
         await new Promise(r => setTimeout(r, 500));
 
-        // Step 5: Connect CRM
-        log('Step 5: Connecting CRM Agent...');
+        // Step 7: Connect CRM
+        log('Step 7: Connecting CRM Agent...');
         connectCRM();
         await new Promise(r => setTimeout(r, 1000));
 
-        // Step 6: Connect Client
-        log('Step 6: Connecting Widget Client...');
+        // Step 8: Connect Client
+        log('Step 8: Connecting Widget Client...');
         connectClient();
         await new Promise(r => setTimeout(r, 1000));
 
-        // Step 7: Send test messages
-        log('Step 7: Sending test messages...');
+        // Step 9: Send test messages
+        log('Step 9: Sending test messages...');
 
         if (crmWs && crmWs.readyState === WebSocket.OPEN) {
           const msg = { type: 'message', content: 'Hello from CRM Agent!', visitor_id: 'crm-agent' };
@@ -1231,13 +1497,69 @@
       }
     }
 
+    // ===== Invite Test Flow =====
+    async function runInviteTest() {
+      log('Starting invite test flow...');
+      document.getElementById('test-log').textContent = '';
+
+      try {
+        // Step 1: Register admin
+        log('Step 1: Registering admin...');
+        document.getElementById('auth-email').value = 'admin-' + Date.now() + '@test.com';
+        document.getElementById('auth-org-name').value = 'Test Org ' + Date.now();
+        await register();
+        await new Promise(r => setTimeout(r, 500));
+
+        // Step 2: Invite a member
+        const memberEmail = 'member-' + Date.now() + '@test.com';
+        log(`Step 2: Inviting ${memberEmail}...`);
+        document.getElementById('invite-email').value = memberEmail;
+        document.getElementById('invite-name').value = 'Test Member';
+        await inviteUser();
+        await new Promise(r => setTimeout(r, 500));
+
+        // Step 3: List members (admin + pending)
+        log('Step 3: Listing members (expect admin + pending)...');
+        await listMembers();
+        await new Promise(r => setTimeout(r, 500));
+
+        // Step 4: Accept invite (requires token from server logs or response)
+        if (lastInviteToken) {
+          log('Step 4: Accepting invite...');
+          document.getElementById('accept-token').value = lastInviteToken;
+          document.getElementById('accept-password').value = 'newpassword123';
+          await acceptInvite();
+          await new Promise(r => setTimeout(r, 500));
+
+          // Step 5: List members again (both active)
+          log('Step 5: Listing members (expect both active)...');
+          await listMembers();
+          await new Promise(r => setTimeout(r, 500));
+
+          // Step 6: Login as the new member
+          log('Step 6: Logging in as new member...');
+          document.getElementById('auth-email').value = memberEmail;
+          document.getElementById('auth-password').value = 'newpassword123';
+          await login();
+        } else {
+          log('Step 4: SKIPPED - No invite token available (check server logs for the token)');
+          log('  Copy the inv_xxx token from logs and paste it in the Accept Invite section');
+        }
+
+        log('Invite test flow completed!');
+
+      } catch (err) {
+        log(`Test failed: ${err.message}`);
+      }
+    }
+
     // ===== Webhook Test Flow =====
     async function runWebhookTest() {
       log('Starting webhook test flow...');
       document.getElementById('test-log').textContent = '';
 
       try {
-        // Step 1: Login (assumes user exists)
+        // Step 1: Login
         log('Step 1: Logging in...');
         await login();
         await new Promise(r => setTimeout(r, 500));

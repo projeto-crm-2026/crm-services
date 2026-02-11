@@ -5,6 +5,7 @@ type Config struct {
 	Server ServerConfig
 	JWT    JWTConfig
 	Crypto CryptoConfig
+	SMTP   SMTPConfig
 }
 
 type DBConfig struct {
@@ -25,4 +26,13 @@ type JWTConfig struct {
 
 type CryptoConfig struct {
 	AESKey string // 32bytes
+}
+
+type SMTPConfig struct {
+	Host     string
+	Port     int
+	Username string
+	Password string
+	From     string
+	BaseURL  string
 }

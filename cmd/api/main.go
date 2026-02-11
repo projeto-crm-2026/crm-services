@@ -21,6 +21,7 @@ import (
 	"github.com/projeto-crm-2026/crm-services/internal/service/userservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/webhookservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/widgetservice"
+	"github.com/projeto-crm-2026/crm-services/pkg/mailer"
 )
 
 func main() {
@@ -89,8 +90,18 @@ func main() {
 	hub := websocket.NewHub()
 	go hub.Run()
 
+	// mailer - isso aqui vamos ver dps como vai enviar o email, qual serviço vamos utilzar
+	mailClient := mailer.NewSMTPMailer(mailer.SMTPConfig{
+		Host:     cfg.SMTP.Host,
+		Port:     cfg.SMTP.Port,
+		Username: cfg.SMTP.Username,
+		Password: cfg.SMTP.Password,
+		From:     cfg.SMTP.From,
+		BaseURL:  cfg.SMTP.BaseURL,
+	})
+
 	// services
-	userSvc := userservice.NewUserService(userRepo, &cfg.JWT, logger)
+	userSvc := userservice.NewUserService(userRepo, organizationRepo, &cfg.JWT, mailClient, logger)
 	widgetSvc := widgetservice.NewWidgetService(apiKeyRepo, &cfg.JWT, logger)
 	chatSvc := chatservice.NewChatService(chatRepo, messageRepo, logger)
 	webhookSvc := webhookservice.NewWebhookService(webhookRepo, chatSvc, hub, cfg.Crypto.AESKey, logger)

@@ -20,6 +20,7 @@ func New(cfg Config) http.Handler {
 		r.Post("/register", cfg.Handlers.User.Register)
 		r.Post("/login", cfg.Handlers.User.Login)
 		r.Post("/logout", cfg.Handlers.User.Logout)
+		r.Post("/invite/accept", cfg.Handlers.User.AcceptInvite)
 	})
 
 	// widget
@@ -46,6 +47,9 @@ func New(cfg Config) http.Handler {
 		r.Use(cfg.Middlewares.ContentJSON)
 		r.Use(cfg.Middlewares.JWT)
 		r.Use(cfg.RateLimiters.API)
+
+		r.Post("/members/invite", cfg.Handlers.User.InviteUser)
+		r.Get("/members", cfg.Handlers.User.ListMembers)
 
 		// API Key
 		r.Post("/api-keys", cfg.Handlers.Widget.CreateAPIKey)

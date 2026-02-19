@@ -103,7 +103,7 @@ func (s *userService) LoginUser(ctx context.Context, email, password string) (st
 
 	if user == nil {
 		s.logger.Warn("user not found", "email", email)
-		return "", nil, fmt.Errorf("invalid password or email %s", email)
+		return "", nil, fmt.Errorf("invalid password or email")
 	}
 
 	if user.IsPending() {
@@ -112,7 +112,7 @@ func (s *userService) LoginUser(ctx context.Context, email, password string) (st
 
 	if !passwordHashing.VerifyPassword(password, user.PasswordHash) {
 		s.logger.Warn("invalid password", "email", email)
-		return "", nil, fmt.Errorf("invalid password or email %s", email)
+		return "", nil, fmt.Errorf("invalid password or email")
 	}
 
 	token, err := jwt.GenerateToken(user.ID, user.Email, user.OrganizationID, s.jwtConfig.JWTSecret)

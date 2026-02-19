@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -9,6 +10,9 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
+
+//go:embed seeds/seed.sql
+var seedSQL string
 
 type Repo interface {
 	User() UserRepo
@@ -48,10 +52,21 @@ func Connect(ctx context.Context, dbConfig config.DBConfig) (*Conn, error) {
 }
 
 func RunCustomMigrations(db *gorm.DB) error {
-	return db.Exec(`
+	if err := db.Exec(`
         CREATE INDEX IF NOT EXISTS idx_webhook_events_gin 
         ON webhook USING GIN (events);
-    `).Error
+    `).Error; err != nil {
+		return fmt.Errorf("failed to run custom migration: %w", err)
+	}
+
+	return nil
+}
+
+func RunSeeds(db *gorm.DB) error {
+	if err := db.Exec(seedSQL).Error; err != nil {
+		return fmt.Errorf("failed to run seed: %w", err)
+	}
+	return nil
 }
 
 func (c *Conn) GetDB() *gorm.DB {

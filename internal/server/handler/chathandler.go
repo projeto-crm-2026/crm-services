@@ -186,7 +186,7 @@ func (h *ChatHandler) GetMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(messages)
+	json.NewEncoder(w).Encode(model.ToMessageResponseList(messages))
 }
 
 func (a *messageSaverAdapter) SaveMessage(ctx context.Context, chatID uint, senderID *uint, visitorID, content string) error {

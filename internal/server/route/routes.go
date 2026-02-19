@@ -34,13 +34,18 @@ func New(cfg Config) http.Handler {
 		r.Get("/widget/chat/{chatID}/messages", cfg.Handlers.Chat.GetMessages)
 	})
 
-	// webSocket for authenticated CRM agents and widgets
-	r.Get("/ws/chat/{chatID}", cfg.Handlers.Chat.HandleWebSocket)
+	// webSocket for widgets
 	r.Get("/ws/widget/{chatID}", cfg.Handlers.Chat.HandleWebSocket)
 
 	// incoming webhook
 	r.With(cfg.RateLimiters.Webhook).
 		Post("/webhook/incoming", cfg.Handlers.Webhook.HandleIncomingWebhook)
+
+	// crm agent websocket
+	r.Group(func(r chi.Router) {
+		r.Use(cfg.Middlewares.JWT)
+		r.Get("/ws/chat/{chatID}", cfg.Handlers.Chat.HandleWebSocket)
+	})
 
 	// protected
 	r.Group(func(r chi.Router) {

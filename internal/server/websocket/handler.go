@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -20,6 +21,15 @@ type IncomingMessage struct {
 	Type      string `json:"type"`
 	Content   string `json:"content"`
 	VisitorID string `json:"visitor_id,omitempty"`
+}
+
+type OutgoingMessage struct {
+	Type      string `json:"type"`
+	Content   string `json:"content"`
+	SenderID  *uint  `json:"sender_id,omitempty"`
+	VisitorID string `json:"visitor_id,omitempty"`
+	ChatID    uint   `json:"chat_id"`
+	CreatedAt string `json:"created_at"`
 }
 
 type MessageSaver interface {
@@ -56,6 +66,21 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request, chatID uint, user
 			}
 		}
 
-		hub.BroadcastToChat(chatID, message)
+		outgoing := OutgoingMessage{
+			Type:      msg.Type,
+			Content:   msg.Content,
+			SenderID:  userID,
+			VisitorID: visitorID,
+			ChatID:    chatID,
+			CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		}
+
+		enriched, err := json.Marshal(outgoing)
+		if err != nil {
+			hub.logger.Error("failed to marshal outgoing message")
+			return
+		}
+
+		hub.BroadcastToChat(chatID, enriched)
 	})
 }

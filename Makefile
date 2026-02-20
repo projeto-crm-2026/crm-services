@@ -30,4 +30,4 @@ ps: ## Show running containers
 	docker-compose ps
 
 test-ui: ## Serve test HTML on port 3000
-	cd internal/server/websocket && python3 -m http.server 3000
+	cd internal/server/websocket && python3 -m http.server 5000

@@ -2,6 +2,7 @@ package widgetservice
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ type WidgetService interface {
 	CreateAPIKey(ctx context.Context, userID uint, name, domain string) (*entity.APIKey, error)
 	ListAPIKeys(ctx context.Context, userID uint) ([]entity.APIKey, error)
 	DeleteAPIKey(ctx context.Context, userID uint, keyID uint) error
+	ResumeChat(ctx context.Context, chatID uint, visitorID string, ownerUserID uint) (*entity.Chat, error)
 }
 
 type WidgetSession struct {
@@ -31,13 +33,15 @@ type APIKeyInfo struct {
 }
 
 type widgetService struct {
+	chatRepo   repo.ChatRepo
 	apiKeyRepo repo.APIKeyRepo
 	jwtConfig  *config.JWTConfig
 	logger     *slog.Logger
 }
 
-func NewWidgetService(apiKeyRepo repo.APIKeyRepo, jwtConfig *config.JWTConfig, logger *slog.Logger) WidgetService {
+func NewWidgetService(chatRepo repo.ChatRepo, apiKeyRepo repo.APIKeyRepo, jwtConfig *config.JWTConfig, logger *slog.Logger) WidgetService {
 	return &widgetService{
+		chatRepo:   chatRepo,
 		apiKeyRepo: apiKeyRepo,
 		jwtConfig:  jwtConfig,
 		logger:     logger,
@@ -124,4 +128,24 @@ func (s *widgetService) isOriginAllowed(origin, allowedDomain string) bool {
 	return origin == allowedDomain ||
 		origin == "https://"+allowedDomain ||
 		origin == "http://"+allowedDomain
+}
+
+func (s *widgetService) ResumeChat(ctx context.Context, chatID uint, visitorID string, ownerUserID uint) (*entity.Chat, error) {
+	chat, err := s.chatRepo.GetByID(ctx, chatID)
+	if err != nil {
+		s.logger.Warn("failed to resume chat", "chatID", chatID, "error", err)
+		return nil, err
+	}
+
+	if chat.OwnerUserID != ownerUserID {
+		s.logger.Warn("chat owner mismatch on resume", "chatID", chatID, "expected", ownerUserID, "got", chat.OwnerUserID)
+		return nil, errors.New("chat not found")
+	}
+
+	if chat.Status != entity.ChatStatusOpen {
+		s.logger.Info("chat is no longer open", "chatID", chatID, "status", chat.Status)
+		return nil, errors.New("chat is closed")
+	}
+
+	return chat, nil
 }

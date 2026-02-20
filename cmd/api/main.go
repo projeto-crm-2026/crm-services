@@ -107,7 +107,7 @@ func main() {
 
 	// services
 	userSvc := userservice.NewUserService(userRepo, organizationRepo, &cfg.JWT, mailClient, logger)
-	widgetSvc := widgetservice.NewWidgetService(apiKeyRepo, &cfg.JWT, logger)
+	widgetSvc := widgetservice.NewWidgetService(chatRepo, apiKeyRepo, &cfg.JWT, logger)
 	chatSvc := chatservice.NewChatService(chatRepo, messageRepo, logger)
 	webhookSvc := webhookservice.NewWebhookService(webhookRepo, chatSvc, hub, cfg.Crypto.AESKey, logger)
 	contactSvc := contactservice.NewContactService(contactRepo, logger)

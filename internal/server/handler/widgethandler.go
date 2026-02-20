@@ -36,9 +36,23 @@ func (h *WidgetHandler) InitWidget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(model.InitWidgetResponse{
+	response := model.InitWidgetResponse{
 		Token:     session.Token,
 		VisitorID: session.VisitorID,
-	})
+	}
+
+	if req.ChatID != nil {
+		chat, err := h.service.ResumeChat(r.Context(), *req.ChatID, session.VisitorID, widgetCtx.UserID)
+		if err == nil {
+			response.Chat = &model.ChatResponse{
+				ID:     chat.ID,
+				UUID:   chat.UUID,
+				Status: string(chat.Status),
+				Origin: chat.Origin,
+			}
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }

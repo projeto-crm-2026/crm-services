@@ -35,6 +35,12 @@ func (h *ChatHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, err = h.service.GetChat(r.Context(), uint(chatID))
+	if err != nil {
+		http.Error(w, "chat not found", http.StatusNotFound)
+		return
+	}
+
 	var userID *uint
 	visitorID := ""
 

@@ -29,7 +29,7 @@ func LoadConfigs(logger *slog.Logger) *Config {
 		Username: os.Getenv("SMTP_USERNAME"),
 		Password: os.Getenv("SMTP_PASSWORD"),
 		From:     os.Getenv("SMTP_FROM"),
-		BaseURL:  os.Getenv("APP_BASE_URL"),
+		BaseURL:  os.Getenv("SMTP_BASE_URL"),
 	}
 
 	return &config

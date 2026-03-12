@@ -31,3 +31,6 @@ ps: ## Show running containers
 
 test-ui: ## Serve test HTML on port 3000
 	cd internal/server/websocket && python3 -m http.server 5000
+
+air: ## hot reload
+	air --build.cmd "go build -o bin/api ./cmd/api/main.go" --build.entrypoint "./bin/api"

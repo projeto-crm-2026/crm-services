@@ -37,7 +37,6 @@ func (h *WidgetHandler) InitWidget(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := model.InitWidgetResponse{
-		Token:     session.Token,
 		VisitorID: session.VisitorID,
 	}
 

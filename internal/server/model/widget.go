@@ -7,7 +7,6 @@ type InitWidgetRequest struct {
 }
 
 type InitWidgetResponse struct {
-	Token     string        `json:"token"`
 	VisitorID string        `json:"visitor_id"`
 	Chat      *ChatResponse `json:"chat,omitempty"`
 }

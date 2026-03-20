@@ -10,7 +10,7 @@ import (
 	"github.com/projeto-crm-2026/crm-services/internal/domain/entity"
 )
 
-var ErrContactNotFound = errors.New("organization not found")
+var ErrOrganizationNotFound = errors.New("organization not found")
 
 type OrganizationRepo interface {
 	Create(ctx context.Context, org *entity.Organization) (*entity.Organization, error)
@@ -79,7 +79,7 @@ func (r *organizationRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.O
 	)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, errors.New("organization not found")
+		return nil, ErrOrganizationNotFound
 	}
 
 	return org, err
@@ -98,7 +98,7 @@ func (r *organizationRepo) GetBySlug(ctx context.Context, slug string) (*entity.
 	)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, errors.New("organization not found")
+		return nil, ErrOrganizationNotFound
 	}
 
 	return org, err
@@ -120,7 +120,7 @@ func (r *organizationRepo) Update(ctx context.Context, org *entity.Organization)
 	}
 
 	if result.RowsAffected() == 0 {
-		return errors.New("organization not found")
+		return ErrOrganizationNotFound
 	}
 
 	return nil
@@ -133,7 +133,7 @@ func (r *organizationRepo) Delete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if result.RowsAffected() == 0 {
-		return errors.New("organization not found")
+		return ErrOrganizationNotFound
 	}
 	return nil
 }
@@ -145,7 +145,7 @@ func (r *organizationRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if result.RowsAffected() == 0 {
-		return errors.New("organization not found")
+		return ErrOrganizationNotFound
 	}
 	return nil
 }
@@ -157,7 +157,7 @@ func (r *organizationRepo) Restore(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if result.RowsAffected() == 0 {
-		return errors.New("organization not found")
+		return ErrOrganizationNotFound
 	}
 	return nil
 }

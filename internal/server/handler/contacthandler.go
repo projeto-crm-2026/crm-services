@@ -4,14 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/projeto-crm-2026/crm-services/internal/repo"
+	"github.com/projeto-crm-2026/crm-services/internal/domain/constant"
 	"github.com/projeto-crm-2026/crm-services/internal/server/middleware"
 	"github.com/projeto-crm-2026/crm-services/internal/server/model"
 	"github.com/projeto-crm-2026/crm-services/internal/service/contactservice"
+)
+
+const (
+	errContactNotFound = "contact not found"
+	errInvalidID       = "invalid id provided"
 )
 
 type ContactHandler struct {
@@ -23,39 +26,38 @@ func NewContactHandler(svc contactservice.ContactService) *ContactHandler {
 }
 
 func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var request model.CreateContactRequest
-
 	claims, ok := middleware.GetUserFromContext(r.Context())
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
 	if claims.OrganizationID == nil {
-		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		http.Error(w, constant.UserNotInOrganization, http.StatusForbidden)
 		return
 	}
 
+	var request model.CreateContactRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "invalid payload", http.StatusBadRequest)
 		return
 	}
+	if err := request.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	entity := request.ToEntity()
-	entity.OrganizationID = *claims.OrganizationID
-	contact, err := h.service.Create(r.Context(), entity)
+	contact := request.Parse()
+	contact.OrganizationID = *claims.OrganizationID
+	contact.CreatedByID = &claims.UserID
 
+	created, err := h.service.Create(r.Context(), contact)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	response := model.NewContactResponse(contact)
-
-	apiResponse := model.NewSuccessResponse("Contact created successfully", response)
-
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(apiResponse)
+	_ = json.NewEncoder(w).Encode(model.NewContactResponse(created))
 }
 
 func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -64,18 +66,14 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
 	if claims.OrganizationID == nil {
-		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		http.Error(w, constant.UserNotInOrganization, http.StatusForbidden)
 		return
 	}
 
-	organization_id := *claims.OrganizationID
-
-	rawId := r.PathValue("id")
-	id, err := uuid.Parse(rawId)
+	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "invalid id provided", http.StatusBadRequest)
+		http.Error(w, errInvalidID, http.StatusBadRequest)
 		return
 	}
 
@@ -85,25 +83,22 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contact, err := h.service.GetByID(r.Context(), id, organization_id)
+	contact, err := h.service.GetByID(r.Context(), id, *claims.OrganizationID)
 	if err != nil {
-		http.Error(w, "contact not found", http.StatusNotFound)
+		http.Error(w, errContactNotFound, http.StatusNotFound)
 		return
 	}
 
-	request.UpdateEntity(contact)
+	request.Apply(contact)
+	contact.UpdatedByID = &claims.UserID
 
-	err = h.service.Update(r.Context(), contact)
-	if err != nil {
+	if err := h.service.Update(r.Context(), contact); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	response := model.NewContactResponse(contact)
-	apiResponse := model.NewSuccessResponse("Contact updated successfully", response)
-
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(apiResponse)
+	_ = json.NewEncoder(w).Encode(model.NewContactResponse(contact))
 }
 
 func (h *ContactHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -112,32 +107,25 @@ func (h *ContactHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
 	if claims.OrganizationID == nil {
-		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		http.Error(w, constant.UserNotInOrganization, http.StatusForbidden)
 		return
 	}
 
-	organization_id := *claims.OrganizationID
-
-	rawId := r.PathValue("id")
-	id, err := uuid.Parse(rawId)
+	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "invalid id provided", http.StatusBadRequest)
+		http.Error(w, errInvalidID, http.StatusBadRequest)
 		return
 	}
 
-	contact, err := h.service.GetByID(r.Context(), id, organization_id)
+	contact, err := h.service.GetByID(r.Context(), id, *claims.OrganizationID)
 	if err != nil {
-		http.Error(w, "contact not found", http.StatusNotFound)
+		http.Error(w, errContactNotFound, http.StatusNotFound)
 		return
 	}
-
-	response := model.NewContactResponse(contact)
-	apiResponse := model.NewSuccessResponse("Contact returned successfully", response)
 
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(apiResponse)
+	_ = json.NewEncoder(w).Encode(model.NewContactResponse(contact))
 }
 
 func (h *ContactHandler) GetByEmail(w http.ResponseWriter, r *http.Request) {
@@ -146,13 +134,10 @@ func (h *ContactHandler) GetByEmail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
 	if claims.OrganizationID == nil {
-		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		http.Error(w, constant.UserNotInOrganization, http.StatusForbidden)
 		return
 	}
-
-	organization_id := *claims.OrganizationID
 
 	email := r.PathValue("email")
 	if email == "" {
@@ -160,17 +145,14 @@ func (h *ContactHandler) GetByEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contact, err := h.service.GetByEmail(r.Context(), email, organization_id)
+	contact, err := h.service.GetByEmail(r.Context(), email, *claims.OrganizationID)
 	if err != nil {
-		http.Error(w, "contact not found", http.StatusNotFound)
+		http.Error(w, errContactNotFound, http.StatusNotFound)
 		return
 	}
 
-	response := model.NewContactResponse(contact)
-	apiResponse := model.NewSuccessResponse("Contact returned successfully", response)
-
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(apiResponse)
+	_ = json.NewEncoder(w).Encode(model.NewContactResponse(contact))
 }
 
 func (h *ContactHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -179,37 +161,28 @@ func (h *ContactHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
 	if claims.OrganizationID == nil {
-		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		http.Error(w, constant.UserNotInOrganization, http.StatusForbidden)
 		return
 	}
 
-	organization_id := *claims.OrganizationID
-
-	rawId := r.PathValue("id")
-	id, err := uuid.Parse(rawId)
+	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "invalid id provided", http.StatusBadRequest)
+		http.Error(w, errInvalidID, http.StatusBadRequest)
 		return
 	}
 
-	_, err = h.service.GetByID(r.Context(), id, organization_id)
-	if err != nil {
-		http.Error(w, "contact not found", http.StatusNotFound)
+	if _, err := h.service.GetByID(r.Context(), id, *claims.OrganizationID); err != nil {
+		http.Error(w, errContactNotFound, http.StatusNotFound)
 		return
 	}
 
-	err = h.service.Delete(r.Context(), id)
-	if err != nil {
-		http.Error(w, "error while deleting the user", http.StatusNotFound)
+	if err := h.service.Delete(r.Context(), id); err != nil {
+		http.Error(w, "error while deleting the contact", http.StatusInternalServerError)
 		return
 	}
-
-	apiResponse := model.NewSuccessResponse("Contact deleted successfully", nil)
 
 	w.WriteHeader(http.StatusNoContent)
-	_ = json.NewEncoder(w).Encode(apiResponse)
 }
 
 func (h *ContactHandler) SoftDelete(w http.ResponseWriter, r *http.Request) {
@@ -218,49 +191,50 @@ func (h *ContactHandler) SoftDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
 	if claims.OrganizationID == nil {
-		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		http.Error(w, constant.UserNotInOrganization, http.StatusForbidden)
 		return
 	}
 
-	organization_id := *claims.OrganizationID
-
-	rawId := r.PathValue("id")
-	id, err := uuid.Parse(rawId)
+	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "invalid id provided", http.StatusBadRequest)
+		http.Error(w, errInvalidID, http.StatusBadRequest)
 		return
 	}
 
-	_, err = h.service.GetByID(r.Context(), id, organization_id)
-	if err != nil {
-		http.Error(w, "contact not found", http.StatusNotFound)
+	if _, err := h.service.GetByID(r.Context(), id, *claims.OrganizationID); err != nil {
+		http.Error(w, errContactNotFound, http.StatusNotFound)
 		return
 	}
 
-	err = h.service.SoftDelete(r.Context(), id)
-	if err != nil {
-		http.Error(w, "error while tried to soft delete the user", http.StatusNotFound)
+	if err := h.service.SoftDelete(r.Context(), id); err != nil {
+		http.Error(w, "error while deleting the contact", http.StatusInternalServerError)
 		return
 	}
 
-	apiResponse := model.NewSuccessResponse("Contact soft deleted successfully", nil)
-
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(apiResponse)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *ContactHandler) List(w http.ResponseWriter, r *http.Request) {
-	filters := h.parseFilters(r)
+	claims, ok := middleware.GetUserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if claims.OrganizationID == nil {
+		http.Error(w, constant.UserNotInOrganization, http.StatusForbidden)
+		return
+	}
 
-	query := r.URL.Query()
-	pageStr := query.Get("page")
-	pageSizeStr := query.Get("page_size")
+	filters := model.ParseContactFilters(r)
+	filters.OrganizationID = *claims.OrganizationID
+
+	q := r.URL.Query()
+	pageStr := q.Get("page")
 
 	if pageStr != "" {
 		page, _ := strconv.Atoi(pageStr)
-		pageSize, _ := strconv.Atoi(pageSizeStr)
+		pageSize, _ := strconv.Atoi(q.Get("page_size"))
 		if page < 1 {
 			page = 1
 		}
@@ -274,11 +248,8 @@ func (h *ContactHandler) List(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		response := model.NewPaginatedContactResponse(result)
-		apiResponse := model.NewSuccessResponse("Contacts listed successfully", response)
-
 		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(apiResponse)
+		_ = json.NewEncoder(w).Encode(model.NewPaginatedContactResponse(result))
 		return
 	}
 
@@ -288,11 +259,8 @@ func (h *ContactHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := model.NewContactListResponse(contacts)
-	apiResponse := model.NewSuccessResponse("Contacts listed successfully", response)
-
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(apiResponse)
+	_ = json.NewEncoder(w).Encode(model.NewContactListResponse(contacts))
 }
 
 func (h *ContactHandler) Search(w http.ResponseWriter, r *http.Request) {
@@ -301,13 +269,10 @@ func (h *ContactHandler) Search(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
 	if claims.OrganizationID == nil {
-		http.Error(w, "user not associated with any organization", http.StatusForbidden)
+		http.Error(w, constant.UserNotInOrganization, http.StatusForbidden)
 		return
 	}
-
-	organization_id := *claims.OrganizationID
 
 	queryTerm := r.URL.Query().Get("q")
 	if queryTerm == "" {
@@ -315,74 +280,15 @@ func (h *ContactHandler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filters := h.parseFilters(r)
+	filters := model.ParseContactFilters(r)
+	filters.OrganizationID = *claims.OrganizationID
 
-	contacts, err := h.service.Search(r.Context(), queryTerm, filters, organization_id)
+	contacts, err := h.service.Search(r.Context(), queryTerm, filters)
 	if err != nil {
 		http.Error(w, "failed to search contacts", http.StatusInternalServerError)
 		return
 	}
 
-	response := model.NewContactListResponse(contacts)
-	apiResponse := model.NewSuccessResponse("Search completed successfully", response)
-
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(apiResponse)
-}
-
-func (h *ContactHandler) parseFilters(r *http.Request) repo.ContactFilters {
-	q := r.URL.Query()
-	f := repo.ContactFilters{}
-
-	// filtros
-	if v := q.Get("status"); v != "" {
-		f.Status = v
-	}
-	if v := q.Get("type"); v != "" {
-		f.Type = v
-	}
-	if v := q.Get("source"); v != "" {
-		f.Source = v
-	}
-	if v := q.Get("city"); v != "" {
-		f.City = &v
-	}
-	if v := q.Get("state"); v != "" {
-		f.State = &v
-	}
-	if v := q.Get("country"); v != "" {
-		f.Country = &v
-	}
-
-	// tags (separadas por vírgula: ?tags=cliente,vip)
-	if v := q.Get("tags"); v != "" {
-		f.Tags = strings.Split(v, ",")
-	}
-
-	// ids
-	if v := q.Get("assigned_to_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 32); err == nil {
-			uid := uint(id)
-			f.AssignedToID = &uid
-		}
-	}
-	if v := q.Get("created_by_id"); v != "" {
-		if id, err := strconv.ParseUint(v, 10, 32); err == nil {
-			uid := uint(id)
-			f.CreatedByID = &uid
-		}
-	}
-
-	if v := q.Get("created_after"); v != "" {
-		if t, err := time.Parse("2006-01-02", v); err == nil {
-			f.CreatedAfter = &t
-		}
-	}
-	if v := q.Get("created_before"); v != "" {
-		if t, err := time.Parse("2006-01-02", v); err == nil {
-			f.CreatedBefore = &t
-		}
-	}
-
-	return f
+	_ = json.NewEncoder(w).Encode(model.NewContactListResponse(contacts))
 }

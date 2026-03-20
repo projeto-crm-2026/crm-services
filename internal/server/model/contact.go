@@ -3,11 +3,14 @@ package model
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/projeto-crm-2026/crm-services/internal/domain/entity"
 	"github.com/projeto-crm-2026/crm-services/internal/repo"
+	"github.com/projeto-crm-2026/crm-services/pkg/sqlutils"
+	"github.com/projeto-crm-2026/crm-services/pkg/utils"
 )
 
 type CreateContactRequest struct {
@@ -107,7 +110,6 @@ func (r CreateContactRequest) Validate() error {
 	if r.Type == "" {
 		return fmt.Errorf("contact type is required")
 	}
-
 	if entity.ContactType(r.Type) == entity.ContactTypePerson {
 		if r.FirstName == "" {
 			return fmt.Errorf("first name is required for person contacts")
@@ -119,11 +121,10 @@ func (r CreateContactRequest) Validate() error {
 	} else {
 		return fmt.Errorf("invalid contact type: %s", r.Type)
 	}
-
 	return nil
 }
 
-func (r CreateContactRequest) ToEntity() *entity.Contact {
+func (r CreateContactRequest) Parse() *entity.Contact {
 	orgID, _ := uuid.Parse(r.OrganizationID)
 
 	c := &entity.Contact{
@@ -158,7 +159,7 @@ func (r CreateContactRequest) ToEntity() *entity.Contact {
 	return c
 }
 
-func (r UpdateContactRequest) UpdateEntity(c *entity.Contact) {
+func (r UpdateContactRequest) Apply(c *entity.Contact) {
 	if r.FirstName != "" {
 		c.FirstName = r.FirstName
 	}
@@ -170,16 +171,32 @@ func (r UpdateContactRequest) UpdateEntity(c *entity.Contact) {
 	}
 	if r.Tags != nil {
 		c.Tags = r.Tags
-	} // se passar um array vazio limpa as tags nesse caso
+	}
 	if r.AssignedToID != nil {
 		c.AssignedToID = r.AssignedToID
 	}
-
 	if r.Email != "" {
 		c.Email = toNullString(r.Email)
 	}
 	if r.CompanyName != "" {
 		c.CompanyName = toNullString(r.CompanyName)
+	}
+}
+
+func ParseContactFilters(r *http.Request) repo.ContactFilters {
+	q := r.URL.Query()
+	return repo.ContactFilters{
+		Status:        utils.QueryAny(q.Get("status")),
+		Type:          utils.QueryAny(q.Get("type")),
+		Source:        utils.QueryAny(q.Get("source")),
+		City:          utils.QueryPtr(q.Get("city")),
+		State:         utils.QueryPtr(q.Get("state")),
+		Country:       utils.QueryPtr(q.Get("country")),
+		Tags:          utils.QueryTags(q.Get("tags")),
+		AssignedToID:  utils.QueryUint(q.Get("assigned_to_id")),
+		CreatedByID:   utils.QueryUint(q.Get("created_by_id")),
+		CreatedAfter:  utils.QueryDate(q.Get("created_after")),
+		CreatedBefore: utils.QueryDate(q.Get("created_before")),
 	}
 }
 
@@ -226,11 +243,9 @@ func NewContactListResponse(contacts []*entity.Contact) []ContactResponse {
 	return list
 }
 
-func NewPaginatedContactResponse(result *repo.PaginatedResult[entity.Contact]) PaginatedContactResponse {
-	responseList := NewContactListResponse(result.Data)
-
+func NewPaginatedContactResponse(result *sqlutils.PaginatedResult[entity.Contact]) PaginatedContactResponse {
 	return PaginatedContactResponse{
-		Data:       responseList,
+		Data:       NewContactListResponse(result.Data),
 		Page:       result.Page,
 		PageSize:   result.PageSize,
 		Total:      result.Total,
@@ -240,7 +255,7 @@ func NewPaginatedContactResponse(result *repo.PaginatedResult[entity.Contact]) P
 
 func toNullString(s string) sql.NullString {
 	if s == "" {
-		return sql.NullString{Valid: false} // ou sql.NullString
+		return sql.NullString{Valid: false}
 	}
 	return sql.NullString{String: s, Valid: true}
 }

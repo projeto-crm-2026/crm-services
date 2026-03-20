@@ -2,6 +2,7 @@ package sqlutils
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -48,6 +49,9 @@ func (q *QueryBuilder) WithOffset(offset int) *QueryBuilder {
 
 func (q *QueryBuilder) Add(cond string, val any) {
 	if val == nil {
+		return
+	}
+	if v := reflect.ValueOf(val); v.Kind() == reflect.Ptr && v.IsNil() {
 		return
 	}
 	q.where += fmt.Sprintf(" AND "+cond, len(q.args)+1)

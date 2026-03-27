@@ -82,7 +82,6 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// create system roles for the new organization and assign Owner to the registering user
 	if user.OrganizationID != nil {
 		ownerRoleID, err := h.roleSvc.CreateSystemRoles(r.Context(), *user.OrganizationID)
 		if err == nil {
@@ -167,14 +166,12 @@ func (h *UserHandler) InviteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// assign default Member role to the invited user
 	if claims.OrganizationID != nil {
 		memberRole, err := h.roleSvc.GetMemberRole(r.Context(), *claims.OrganizationID)
 		if err == nil {
 			_ = h.roleSvc.AssignRole(r.Context(), *claims.OrganizationID, user.ID, memberRole)
 		}
 
-		// check usage warnings after successful invite
 		if usageResp, err := h.planSvc.GetOrganizationUsage(r.Context(), *claims.OrganizationID); err == nil {
 			h.planSvc.NotifyUsageWarnings(r.Context(), *claims.OrganizationID, "membros", usageResp.Usage.Members.Current, usageResp.Usage.Members.Limit)
 		}
@@ -244,7 +241,6 @@ func (h *UserHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// protect owner from being removed
 	if isOwner, _ := h.roleSvc.IsOwner(r.Context(), *claims.OrganizationID, targetUserID); isOwner {
 		http.Error(w, "the organization owner cannot be removed", http.StatusForbidden)
 		return
@@ -276,7 +272,6 @@ func (h *UserHandler) DeactivateMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// protect owner from being deactivated
 	if isOwner, _ := h.roleSvc.IsOwner(r.Context(), *claims.OrganizationID, targetUserID); isOwner {
 		http.Error(w, "the organization owner cannot be deactivated", http.StatusForbidden)
 		return

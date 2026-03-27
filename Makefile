@@ -34,3 +34,6 @@ test-ui: ## Serve test HTML on port 3000
 
 air: ## hot reload
 	air --build.cmd "go build -o bin/api ./cmd/api/main.go" --build.entrypoint "./bin/api"
+
+test: ## run all tests
+	go test -v ./...

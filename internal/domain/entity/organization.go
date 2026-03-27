@@ -10,9 +10,9 @@ import (
 type OrganizationPlan string
 
 const (
-	OrganizationPlanFree         OrganizationPlan = "free"
-	OrganizationPlanStarter      OrganizationPlan = "starter"
-	OrganizationPlanProfessional OrganizationPlan = "professional"
+	OrganizationPlanFree     OrganizationPlan = "free"
+	OrganizationPlanPro      OrganizationPlan = "pro"
+	OrganizationPlanBusiness OrganizationPlan = "business"
 )
 
 type Organization struct {
@@ -27,6 +27,7 @@ type Organization struct {
 	DocumentID string                 `gorm:"type:text;index"`
 	Industry   string                 `gorm:"type:text"`
 	Plan       OrganizationPlan       `gorm:"type:text;not null;default:'free'"`
+	PlanID     *uint                  `gorm:"index"`
 	Settings   map[string]interface{} `gorm:"type:jsonb;default:'{}'"`
 	IsActive   bool                   `gorm:"default:true;index"`
 	CreatedAt  time.Time              `gorm:"autoCreateTime"`

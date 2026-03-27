@@ -27,3 +27,5 @@ coverage.out
 cmd/api/__debug*
 
 bin/*
+.planning/
+CLAUDE.md

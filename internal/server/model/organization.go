@@ -82,6 +82,7 @@ type OrganizationResponse struct {
 	DocumentID         string                  `json:"document_id"`
 	Industry           string                  `json:"industry"`
 	Plan               entity.OrganizationPlan `json:"plan"`
+	PlanID             *uint                  `json:"plan_id,omitempty"`
 	Settings           map[string]interface{}  `json:"settings"`
 	IsActive           bool                    `json:"is_active"`
 	CreatedAt          time.Time               `json:"created_at"`
@@ -99,6 +100,7 @@ func NewOrganizationResponse(org *entity.Organization) *OrganizationResponse {
 		DocumentID: org.DocumentID,
 		Industry:   org.Industry,
 		Plan:       org.Plan,
+		PlanID:     org.PlanID,
 		Settings:   org.Settings,
 		IsActive:   org.IsActive,
 		CreatedAt:  org.CreatedAt,

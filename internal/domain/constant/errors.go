@@ -32,4 +32,8 @@ const (
 	FailedToActivateUser       = "failed to activate account"
 	PasswordRequired           = "password is required"
 	PasswordTooShort           = "password must be at least 8 characters"
+
+	ContactLimitReached       = "Contact limit reached for your current plan. Please upgrade to add more contacts."
+	MemberLimitReached        = "Member limit reached for your current plan. Please upgrade to invite more members."
+	ChatResponderLimitReached = "Chat responder limit reached for your current plan. Please upgrade to add more responders."
 )

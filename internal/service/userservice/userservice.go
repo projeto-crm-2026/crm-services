@@ -24,11 +24,17 @@ type UserService interface {
 	InviteUser(ctx context.Context, adminUserID uint, name, email string) (*entity.User, error)
 	AcceptInvite(ctx context.Context, token, password string) (*entity.User, error)
 	ListOrganizationMembers(ctx context.Context, userID uint) ([]entity.User, error)
+	ListOrganizationMembersWithRole(ctx context.Context, orgID uuid.UUID) ([]entity.User, error)
+	RemoveMember(ctx context.Context, orgID uuid.UUID, targetUserID uint) error
+	DeactivateMember(ctx context.Context, orgID uuid.UUID, targetUserID uint) error
+	ReactivateMember(ctx context.Context, orgID uuid.UUID, targetUserID uint) error
 }
 
 type userService struct {
 	repo      repo.UserRepo
 	orgRepo   repo.OrganizationRepo
+	planRepo  repo.PlanRepo
+	subRepo   repo.SubscriptionRepo
 	jwtConfig *config.JWTConfig
 	mailer    mailer.Mailer
 	logger    *slog.Logger
@@ -37,6 +43,8 @@ type userService struct {
 func NewUserService(
 	repo repo.UserRepo,
 	orgRepo repo.OrganizationRepo,
+	planRepo repo.PlanRepo,
+	subRepo repo.SubscriptionRepo,
 	jwtConfig *config.JWTConfig,
 	mailer mailer.Mailer,
 	logger *slog.Logger,
@@ -44,6 +52,8 @@ func NewUserService(
 	return &userService{
 		repo:      repo,
 		orgRepo:   orgRepo,
+		planRepo:  planRepo,
+		subRepo:   subRepo,
 		jwtConfig: jwtConfig,
 		mailer:    mailer,
 		logger:    logger,
@@ -68,15 +78,36 @@ func (s *userService) RegisterUser(ctx context.Context, name, email, password st
 		return "", nil, err
 	}
 
+	freePlan, err := s.planRepo.GetByName(ctx, "free")
+	if err != nil {
+		s.logger.Error("failed to get free plan", "error", err)
+		return "", nil, fmt.Errorf("failed to assign default plan")
+	}
+
 	org, err := s.orgRepo.Create(ctx, &entity.Organization{
 		Name:     organizationName,
 		Slug:     slug.GenerateSlug(organizationName),
+		PlanID:   &freePlan.ID,
 		IsActive: true,
 	})
 	if err != nil {
 		s.logger.Error("failed to create organization", "error", err)
 		return "", nil, err
 	}
+
+	now := time.Now()
+	_, err = s.subRepo.Create(ctx, &entity.Subscription{
+		OrganizationID:     org.UUID,
+		PlanID:             freePlan.ID,
+		Status:             entity.SubscriptionActive,
+		CurrentPeriodStart: &now,
+	})
+	if err != nil {
+		s.logger.Error("failed to create subscription for new organization", "error", err, "orgID", org.UUID)
+		return "", nil, fmt.Errorf("failed to create subscription")
+	}
+
+	s.logger.Info("organization assigned to free plan with active subscription", "orgID", org.UUID, "planID", freePlan.ID)
 
 	user, err := s.repo.Insert(ctx, name, email, passwordHash, org.UUID)
 	if err != nil {
@@ -110,6 +141,10 @@ func (s *userService) LoginUser(ctx context.Context, email, password string) (st
 		return "", nil, fmt.Errorf("account is pending activation, check your email")
 	}
 
+	if user.IsDeactivated() {
+		return "", nil, fmt.Errorf("account has been deactivated, contact your organization admin")
+	}
+
 	if !passwordHashing.VerifyPassword(password, user.PasswordHash) {
 		s.logger.Warn("invalid password", "email", email)
 		return "", nil, fmt.Errorf("invalid password or email")
@@ -130,10 +165,6 @@ func (s *userService) InviteUser(ctx context.Context, adminUserID uint, name, em
 	if err != nil {
 		s.logger.Error("failed to get admin user", "error", err)
 		return nil, err
-	}
-
-	if !admin.IsAdmin() {
-		return nil, fmt.Errorf("only admins can invite users")
 	}
 
 	if admin.OrganizationID == nil {
@@ -216,4 +247,48 @@ func (s *userService) ListOrganizationMembers(ctx context.Context, userID uint) 
 	}
 
 	return s.repo.ListByOrganization(ctx, *user.OrganizationID)
+}
+
+func (s *userService) ListOrganizationMembersWithRole(ctx context.Context, orgID uuid.UUID) ([]entity.User, error) {
+	return s.repo.ListByOrganizationWithRole(ctx, orgID)
+}
+
+func (s *userService) RemoveMember(ctx context.Context, orgID uuid.UUID, targetUserID uint) error {
+	target, err := s.repo.GetByID(ctx, targetUserID)
+	if err != nil {
+		return fmt.Errorf("user not found")
+	}
+	if target.OrganizationID == nil || *target.OrganizationID != orgID {
+		return fmt.Errorf("user does not belong to this organization")
+	}
+
+	return s.repo.RemoveMember(ctx, targetUserID)
+}
+
+func (s *userService) DeactivateMember(ctx context.Context, orgID uuid.UUID, targetUserID uint) error {
+	target, err := s.repo.GetByID(ctx, targetUserID)
+	if err != nil {
+		return fmt.Errorf("user not found")
+	}
+	if target.OrganizationID == nil || *target.OrganizationID != orgID {
+		return fmt.Errorf("user does not belong to this organization")
+	}
+	if target.Status == entity.StatusDeactivated {
+		return fmt.Errorf("user is already deactivated")
+	}
+	return s.repo.DeactivateUser(ctx, targetUserID)
+}
+
+func (s *userService) ReactivateMember(ctx context.Context, orgID uuid.UUID, targetUserID uint) error {
+	target, err := s.repo.GetByID(ctx, targetUserID)
+	if err != nil {
+		return fmt.Errorf("user not found")
+	}
+	if target.OrganizationID == nil || *target.OrganizationID != orgID {
+		return fmt.Errorf("user does not belong to this organization")
+	}
+	if target.Status != entity.StatusDeactivated {
+		return fmt.Errorf("user is not deactivated")
+	}
+	return s.repo.ReactivateUser(ctx, targetUserID)
 }

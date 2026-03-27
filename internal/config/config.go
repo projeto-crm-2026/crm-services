@@ -32,6 +32,11 @@ func LoadConfigs(logger *slog.Logger) *Config {
 		BaseURL:  os.Getenv("APP_BASE_URL"),
 	}
 
+	config.MercadoPago = MercadoPagoConfig{
+		AccessToken:   os.Getenv("MP_ACCESS_TOKEN"),
+		WebhookSecret: os.Getenv("MP_WEBHOOK_SECRET"),
+	}
+
 	return &config
 }
 

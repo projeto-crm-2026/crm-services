@@ -18,10 +18,14 @@ import (
 	"github.com/projeto-crm-2026/crm-services/internal/service/chatservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/contactservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/organizationservice"
+	"github.com/projeto-crm-2026/crm-services/internal/service/planservice"
+	"github.com/projeto-crm-2026/crm-services/internal/service/roleservice"
+	"github.com/projeto-crm-2026/crm-services/internal/service/subscriptionservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/userservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/webhookservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/widgetservice"
 	"github.com/projeto-crm-2026/crm-services/pkg/mailer"
+	"github.com/projeto-crm-2026/crm-services/pkg/mercadopago"
 )
 
 func main() {
@@ -55,6 +59,11 @@ func main() {
 	// migrations
 	logger.Info("running database migrations...")
 	if err := gormDB.AutoMigrate(
+		&entity.Permission{},
+		&entity.Role{},
+		&entity.Plan{},
+		&entity.Subscription{},
+		&entity.Payment{},
 		&entity.User{},
 		&entity.Chat{},
 		&entity.Message{},
@@ -65,7 +74,6 @@ func main() {
 		&entity.IncomingWebhookToken{},
 		&entity.Contact{},
 		&entity.Organization{},
-		// adicionar as entidades que forem criadas
 	); err != nil {
 		logger.Error("failed to run migrations", "error", err)
 		os.Exit(1)
@@ -90,6 +98,10 @@ func main() {
 	webhookRepo := repo.NewWebhookRepo(pgxPool)
 	contactRepo := repo.NewContactRepo(pgxPool)
 	organizationRepo := repo.NewOrganizationRepo(pgxPool)
+	planRepo := repo.NewPlanRepo(pgxPool)
+	subscriptionRepo := repo.NewSubscriptionRepo(pgxPool)
+	paymentRepo := repo.NewPaymentRepo(pgxPool)
+	roleRepo := repo.NewRoleRepo(pgxPool)
 
 	// websocket hub
 	hub := websocket.NewHub()
@@ -105,24 +117,33 @@ func main() {
 		BaseURL:  cfg.SMTP.BaseURL,
 	})
 
+	// clients
+	mpClient := mercadopago.NewClient(cfg.MercadoPago.AccessToken)
+
 	// services
-	userSvc := userservice.NewUserService(userRepo, organizationRepo, &cfg.JWT, mailClient, logger)
+	userSvc := userservice.NewUserService(userRepo, organizationRepo, planRepo, subscriptionRepo, &cfg.JWT, mailClient, logger)
 	widgetSvc := widgetservice.NewWidgetService(chatRepo, apiKeyRepo, &cfg.JWT, logger)
 	chatSvc := chatservice.NewChatService(chatRepo, messageRepo, logger)
 	webhookSvc := webhookservice.NewWebhookService(webhookRepo, chatSvc, hub, cfg.Crypto.AESKey, logger)
 	contactSvc := contactservice.NewContactService(contactRepo, logger)
 	organizationSvc := organizationservice.NewOrganizationService(organizationRepo, logger)
+	planSvc := planservice.NewPlanService(planRepo, subscriptionRepo, userRepo, mailClient, logger)
+	subscriptionSvc := subscriptionservice.NewSubscriptionService(planRepo, subscriptionRepo, paymentRepo, userRepo, mpClient, mailClient, logger)
+	roleSvc := roleservice.NewRoleService(roleRepo, userRepo, logger)
 
 	chatSvc.SetMessageHandler(webhookSvc)
 
 	// handlers
 	healthHandler := handler.NewHealthHandler()
-	userHandler := handler.NewUserHandler(userSvc)
+	userHandler := handler.NewUserHandler(userSvc, planSvc, roleSvc)
 	chatHandler := handler.NewChatHandler(hub, chatSvc)
 	widgetHandler := handler.NewWidgetHandler(widgetSvc)
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
-	contactHandler := handler.NewContactHandler(contactSvc)
+	contactHandler := handler.NewContactHandler(contactSvc, planSvc)
 	organizationHandler := handler.NewOrganizationHandler(organizationSvc)
+	planHandler := handler.NewPlanHandler(planSvc)
+	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionSvc, planRepo)
+	roleHandler := handler.NewRoleHandler(roleSvc)
 
 	// adapters
 	widgetAdapter := adapters.NewWidgetValidator(widgetSvc)
@@ -132,6 +153,7 @@ func main() {
 	jwtMiddleware := middleware.JWTMiddleware(&cfg.JWT)
 	corsMiddleware := middleware.CORSMiddleware()
 	widgetAuthMiddleware := middleware.WidgetAuthMiddleware(widgetAdapter)
+	loadPermissions := middleware.LoadPermissions(roleSvc)
 
 	//rate limiters
 	authRateLimiter := middleware.RateLimitMiddleware(middleware.AuthLimit)
@@ -150,10 +172,15 @@ func main() {
 		server.WithOrganizationHandler(organizationHandler),
 		server.WithWidgetHandler(widgetHandler),
 		server.WithWebhookHandler(webhookHandler),
+		server.WithPlanHandler(planHandler),
+		server.WithSubscriptionHandler(subscriptionHandler),
+		server.WithRoleHandler(roleHandler),
 		server.WithContentJSONMiddleware(contentJsonMiddleware),
 		server.WithJWTMiddleware(jwtMiddleware),
 		server.WithCorsMiddleware(corsMiddleware),
 		server.WithWidgetAuthMiddleware(widgetAuthMiddleware),
+		server.WithLoadPermissionsMiddleware(loadPermissions),
+		server.WithRequirePermission(middleware.RequirePermission),
 		server.WithAuthRateLimiter(authRateLimiter),
 		server.WithWidgetRateLimiter(widgetRateLimiter),
 		server.WithWebhookRateLimiter(webhookRateLimiter),

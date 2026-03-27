@@ -167,11 +167,9 @@ func (h *UserHandler) InviteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if claims.OrganizationID != nil {
-		memberRole, err := h.roleSvc.GetMemberRole(r.Context(), *claims.OrganizationID)
-		if err == nil {
+		if memberRole, err := h.roleSvc.GetMemberRole(r.Context(), *claims.OrganizationID); err == nil {
 			_ = h.roleSvc.AssignRole(r.Context(), *claims.OrganizationID, user.ID, memberRole)
 		}
-
 		if usageResp, err := h.planSvc.GetOrganizationUsage(r.Context(), *claims.OrganizationID); err == nil {
 			h.planSvc.NotifyUsageWarnings(r.Context(), *claims.OrganizationID, "membros", usageResp.Usage.Members.Current, usageResp.Usage.Members.Limit)
 		}

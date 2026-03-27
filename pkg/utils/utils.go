@@ -57,3 +57,11 @@ func NullString(ns sql.NullString) any {
 	}
 	return nil
 }
+
+func FormatTimePtr(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	s := t.Format(time.RFC3339)
+	return &s
+}

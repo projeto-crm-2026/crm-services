@@ -17,8 +17,9 @@ const (
 type UserStatus string
 
 const (
-	StatusActive  UserStatus = "active"
-	StatusPending UserStatus = "pending"
+	StatusActive      UserStatus = "active"
+	StatusPending     UserStatus = "pending"
+	StatusDeactivated UserStatus = "deactivated"
 )
 
 type User struct {
@@ -31,6 +32,7 @@ type User struct {
 	PasswordHash   string         `gorm:"type:text"`
 	Role           UserRole       `gorm:"type:text;not null;default:'admin'"`
 	Status         UserStatus     `gorm:"type:text;not null;default:'active'"`
+	RoleID         *uint          `gorm:"index"`
 	InviteToken    *string        `gorm:"type:text;unique"`
 	InviteExpiry   *time.Time     `gorm:"type:timestamptz"`
 	InvitedBy      *uint          `gorm:"index"`
@@ -39,6 +41,7 @@ type User struct {
 	DeletedAt      gorm.DeletedAt `gorm:"index"`
 
 	Organization *Organization `gorm:"foreignKey:OrganizationID;references:UUID"`
+	RoleRef      *Role         `gorm:"foreignKey:RoleID"`
 }
 
 func (User) TableName() string { return "user" }
@@ -49,4 +52,8 @@ func (u *User) IsAdmin() bool {
 
 func (u *User) IsPending() bool {
 	return u.Status == StatusPending
+}
+
+func (u *User) IsDeactivated() bool {
+	return u.Status == StatusDeactivated
 }

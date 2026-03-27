@@ -45,8 +45,20 @@ type AuthResponse struct {
 	User UserResponse `json:"user"`
 }
 
+type MemberResponse struct {
+	ID             uint       `json:"id"`
+	UUID           uuid.UUID  `json:"uuid"`
+	Name           string     `json:"name"`
+	Email          string     `json:"email"`
+	Status         string     `json:"status"`
+	RoleName       string     `json:"role_name"`
+	RoleID         *uint      `json:"role_id,omitempty"`
+	OrganizationID *uuid.UUID `json:"organization_id,omitempty"`
+	JoinedAt       string     `json:"joined_at"`
+}
+
 type MemberListResponse struct {
-	Members []UserResponse `json:"members"`
+	Members []MemberResponse `json:"members"`
 }
 
 func (r RegisterRequest) Validate() error {
@@ -93,9 +105,23 @@ func NewUserResponse(u *entity.User) UserResponse {
 }
 
 func NewMemberListResponse(users []entity.User) MemberListResponse {
-	members := make([]UserResponse, len(users))
+	members := make([]MemberResponse, len(users))
 	for i, u := range users {
-		members[i] = NewUserResponse(&u)
+		roleName := string(u.Role) // fallback
+		if u.RoleRef != nil {
+			roleName = u.RoleRef.Name
+		}
+		members[i] = MemberResponse{
+			ID:             u.ID,
+			UUID:           u.UUID,
+			Name:           u.Name,
+			Email:          u.Email,
+			Status:         string(u.Status),
+			RoleName:       roleName,
+			RoleID:         u.RoleID,
+			OrganizationID: u.OrganizationID,
+			JoinedAt:       u.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		}
 	}
 	return MemberListResponse{Members: members}
 }

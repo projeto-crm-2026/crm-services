@@ -14,13 +14,17 @@ type Handlers struct {
 	Webhook      *handler.WebhookHandler
 	Contact      *handler.ContactHandler
 	Organization *handler.OrganizationHandler
+	Plan         *handler.PlanHandler
+	Subscription *handler.SubscriptionHandler
+	Role         *handler.RoleHandler
 }
 
 type Middlewares struct {
-	ContentJSON func(http.Handler) http.Handler
-	JWT         func(http.Handler) http.Handler
-	CORS        func(http.Handler) http.Handler
-	WidgetAuth  func(http.Handler) http.Handler
+	ContentJSON     func(http.Handler) http.Handler
+	JWT             func(http.Handler) http.Handler
+	CORS            func(http.Handler) http.Handler
+	WidgetAuth      func(http.Handler) http.Handler
+	LoadPermissions func(http.Handler) http.Handler
 }
 
 type RateLimiters struct {
@@ -30,8 +34,12 @@ type RateLimiters struct {
 	API     func(http.Handler) http.Handler
 }
 
+// factory that returns a per-permission middleware.
+type RequirePermissionFunc func(permission string) func(http.Handler) http.Handler
+
 type Config struct {
-	Handlers     Handlers
-	Middlewares  Middlewares
-	RateLimiters RateLimiters
+	Handlers          Handlers
+	Middlewares       Middlewares
+	RateLimiters      RateLimiters
+	RequirePermission RequirePermissionFunc
 }

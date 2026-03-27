@@ -2,20 +2,29 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
+	"strconv"
 
+	"github.com/projeto-crm-2026/crm-services/internal/domain/constant"
 	"github.com/projeto-crm-2026/crm-services/internal/server/middleware"
 	"github.com/projeto-crm-2026/crm-services/internal/server/model"
+	"github.com/projeto-crm-2026/crm-services/internal/service/planservice"
+	"github.com/projeto-crm-2026/crm-services/internal/service/roleservice"
 	"github.com/projeto-crm-2026/crm-services/internal/service/userservice"
 	"github.com/projeto-crm-2026/crm-services/pkg/https"
 )
 
 type UserHandler struct {
 	service userservice.UserService
+	planSvc planservice.PlanService
+	roleSvc roleservice.RoleService
+	logger  *slog.Logger
 }
 
-func NewUserHandler(svc userservice.UserService) *UserHandler {
-	return &UserHandler{service: svc}
+func NewUserHandler(svc userservice.UserService, planSvc planservice.PlanService, roleSvc roleservice.RoleService, logger *slog.Logger) *UserHandler {
+	return &UserHandler{service: svc, planSvc: planSvc, roleSvc: roleSvc, logger: logger}
 }
 
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +82,18 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+
+	if user.OrganizationID != nil {
+		ownerRoleID, err := h.roleSvc.CreateSystemRoles(r.Context(), *user.OrganizationID)
+		if err != nil {
+			http.Error(w, "failed to initialize organization roles", http.StatusInternalServerError)
+			return
+		}
+		if err := h.roleSvc.AssignRole(r.Context(), *user.OrganizationID, user.ID, ownerRoleID); err != nil {
+			http.Error(w, "failed to assign owner role", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	secure := https.IsHTTPS(r)
@@ -135,10 +156,33 @@ func (h *UserHandler) InviteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if claims.OrganizationID != nil {
+		if err := h.planSvc.CheckMemberLimit(r.Context(), *claims.OrganizationID); err != nil {
+			if errors.Is(err, constant.ErrMemberLimitReached) {
+				http.Error(w, constant.MemberLimitReached, http.StatusForbidden)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
 	user, err := h.service.InviteUser(r.Context(), claims.UserID, req.Name, req.Email)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+
+	if claims.OrganizationID != nil {
+		memberRole, err := h.roleSvc.GetMemberRole(r.Context(), *claims.OrganizationID)
+		if err != nil {
+			h.logger.Error("failed to get member role", "error", err, "orgID", claims.OrganizationID)
+		} else if err := h.roleSvc.AssignRole(r.Context(), *claims.OrganizationID, user.ID, memberRole); err != nil {
+			h.logger.Error("failed to assign member role", "error", err, "userID", user.ID)
+		}
+		if usageResp, err := h.planSvc.GetOrganizationUsage(r.Context(), *claims.OrganizationID); err == nil {
+			h.planSvc.NotifyUsageWarnings(r.Context(), *claims.OrganizationID, "membros", usageResp.Usage.Members.Current, usageResp.Usage.Members.Limit)
+		}
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -173,8 +217,12 @@ func (h *UserHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
+	if claims.OrganizationID == nil {
+		http.Error(w, constant.UserNotInOrganization, http.StatusForbidden)
+		return
+	}
 
-	members, err := h.service.ListOrganizationMembers(r.Context(), claims.UserID)
+	members, err := h.service.ListOrganizationMembersWithRole(r.Context(), *claims.OrganizationID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -182,4 +230,113 @@ func (h *UserHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(model.NewMemberListResponse(members))
+}
+
+func (h *UserHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.GetUserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if claims.OrganizationID == nil {
+		http.Error(w, constant.UserNotInOrganization, http.StatusForbidden)
+		return
+	}
+
+	targetUserID, err := parseUserIDParam(r)
+	if err != nil {
+		http.Error(w, "invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	isOwner, err := h.roleSvc.IsOwner(r.Context(), *claims.OrganizationID, targetUserID)
+	if err != nil {
+		http.Error(w, "failed to verify member role", http.StatusInternalServerError)
+		return
+	}
+
+	if isOwner {
+		http.Error(w, "the organization owner cannot be removed", http.StatusForbidden)
+		return
+	}
+
+	if err := h.service.RemoveMember(r.Context(), *claims.OrganizationID, targetUserID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(model.NewSuccessResponse("Member removed successfully", nil))
+}
+
+func (h *UserHandler) DeactivateMember(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.GetUserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if claims.OrganizationID == nil {
+		http.Error(w, constant.UserNotInOrganization, http.StatusForbidden)
+		return
+	}
+
+	targetUserID, err := parseUserIDParam(r)
+	if err != nil {
+		http.Error(w, "invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	isOwner, err := h.roleSvc.IsOwner(r.Context(), *claims.OrganizationID, targetUserID)
+	if err != nil {
+		http.Error(w, "failed to verify member role", http.StatusInternalServerError)
+		return
+	}
+
+	if isOwner {
+		http.Error(w, "the organization owner cannot be removed", http.StatusForbidden)
+		return
+	}
+
+	if err := h.service.DeactivateMember(r.Context(), *claims.OrganizationID, targetUserID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(model.NewSuccessResponse("Member deactivated successfully", nil))
+}
+
+func (h *UserHandler) ReactivateMember(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.GetUserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if claims.OrganizationID == nil {
+		http.Error(w, constant.UserNotInOrganization, http.StatusForbidden)
+		return
+	}
+
+	targetUserID, err := parseUserIDParam(r)
+	if err != nil {
+		http.Error(w, "invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.ReactivateMember(r.Context(), *claims.OrganizationID, targetUserID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(model.NewSuccessResponse("Member reactivated successfully", nil))
+}
+
+func parseUserIDParam(r *http.Request) (uint, error) {
+	idStr := r.PathValue("userID")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		return 0, err
+	}
+	return uint(id), nil
 }

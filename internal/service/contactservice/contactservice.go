@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
+
 	"github.com/projeto-crm-2026/crm-services/internal/domain/entity"
 	"github.com/projeto-crm-2026/crm-services/internal/repo"
 	"github.com/projeto-crm-2026/crm-services/pkg/sqlutils"

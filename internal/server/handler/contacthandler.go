@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/projeto-crm-2026/crm-services/internal/server/middleware"
 	"github.com/projeto-crm-2026/crm-services/internal/server/model"
 	"github.com/projeto-crm-2026/crm-services/internal/service/contactservice"
+	"github.com/projeto-crm-2026/crm-services/internal/service/planservice"
 )
 
 const (
@@ -19,10 +21,11 @@ const (
 
 type ContactHandler struct {
 	service contactservice.ContactService
+	planSvc planservice.PlanService
 }
 
-func NewContactHandler(svc contactservice.ContactService) *ContactHandler {
-	return &ContactHandler{service: svc}
+func NewContactHandler(svc contactservice.ContactService, planSvc planservice.PlanService) *ContactHandler {
+	return &ContactHandler{service: svc, planSvc: planSvc}
 }
 
 func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -50,10 +53,23 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 	contact.OrganizationID = *claims.OrganizationID
 	contact.CreatedByID = &claims.UserID
 
+	if err := h.planSvc.CheckContactLimit(r.Context(), *claims.OrganizationID); err != nil {
+		if errors.Is(err, constant.ErrContactLimitReached) {
+			http.Error(w, constant.ContactLimitReached, http.StatusForbidden)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	created, err := h.service.Create(r.Context(), contact)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if usageResp, err := h.planSvc.GetOrganizationUsage(r.Context(), *claims.OrganizationID); err == nil {
+		h.planSvc.NotifyUsageWarnings(r.Context(), *claims.OrganizationID, "contatos", usageResp.Usage.Contacts.Current, usageResp.Usage.Contacts.Limit)
 	}
 
 	w.WriteHeader(http.StatusCreated)

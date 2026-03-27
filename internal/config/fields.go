@@ -1,11 +1,17 @@
 package config
 
 type Config struct {
-	DB     DBConfig
-	Server ServerConfig
-	JWT    JWTConfig
-	Crypto CryptoConfig
-	SMTP   SMTPConfig
+	DB         DBConfig
+	Server     ServerConfig
+	JWT        JWTConfig
+	Crypto     CryptoConfig
+	SMTP       SMTPConfig
+	MercadoPago MercadoPagoConfig
+}
+
+type MercadoPagoConfig struct {
+	AccessToken   string
+	WebhookSecret string
 }
 
 type DBConfig struct {

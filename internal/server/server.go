@@ -23,10 +23,15 @@ type Server struct {
 	webhookHandler        *handler.WebhookHandler
 	contactHandler        *handler.ContactHandler
 	organizationHandler   *handler.OrganizationHandler
+	planHandler           *handler.PlanHandler
+	subscriptionHandler   *handler.SubscriptionHandler
+	roleHandler           *handler.RoleHandler
 	contentJSONMiddleware func(http.Handler) http.Handler
 	jwtMiddleware         func(http.Handler) http.Handler
 	corsMiddleware        func(http.Handler) http.Handler
 	widgetAuthMiddleware  func(http.Handler) http.Handler
+	loadPermissions       func(http.Handler) http.Handler
+	requirePermission     route.RequirePermissionFunc
 	authRateLimiter       func(http.Handler) http.Handler
 	widgetRateLimiter     func(http.Handler) http.Handler
 	webhookRateLimiter    func(http.Handler) http.Handler
@@ -76,6 +81,18 @@ func WithOrganizationHandler(h *handler.OrganizationHandler) Option {
 	return func(s *Server) { s.organizationHandler = h }
 }
 
+func WithPlanHandler(h *handler.PlanHandler) Option {
+	return func(s *Server) { s.planHandler = h }
+}
+
+func WithSubscriptionHandler(h *handler.SubscriptionHandler) Option {
+	return func(s *Server) { s.subscriptionHandler = h }
+}
+
+func WithRoleHandler(h *handler.RoleHandler) Option {
+	return func(s *Server) { s.roleHandler = h }
+}
+
 func WithContentJSONMiddleware(mw func(http.Handler) http.Handler) Option {
 	return func(s *Server) {
 		s.contentJSONMiddleware = mw
@@ -97,6 +114,18 @@ func WithCorsMiddleware(mw func(http.Handler) http.Handler) Option {
 func WithWidgetAuthMiddleware(mw func(http.Handler) http.Handler) Option {
 	return func(s *Server) {
 		s.widgetAuthMiddleware = mw
+	}
+}
+
+func WithLoadPermissionsMiddleware(mw func(http.Handler) http.Handler) Option {
+	return func(s *Server) {
+		s.loadPermissions = mw
+	}
+}
+
+func WithRequirePermission(fn route.RequirePermissionFunc) Option {
+	return func(s *Server) {
+		s.requirePermission = fn
 	}
 }
 
@@ -140,12 +169,16 @@ func NewServer(opts ...Option) *Server {
 				Webhook:      s.webhookHandler,
 				Contact:      s.contactHandler,
 				Organization: s.organizationHandler,
+				Plan:         s.planHandler,
+				Subscription: s.subscriptionHandler,
+				Role:         s.roleHandler,
 			},
 			Middlewares: route.Middlewares{
-				ContentJSON: s.contentJSONMiddleware,
-				JWT:         s.jwtMiddleware,
-				CORS:        s.corsMiddleware,
-				WidgetAuth:  s.widgetAuthMiddleware,
+				ContentJSON:     s.contentJSONMiddleware,
+				JWT:             s.jwtMiddleware,
+				CORS:            s.corsMiddleware,
+				WidgetAuth:      s.widgetAuthMiddleware,
+				LoadPermissions: s.loadPermissions,
 			},
 			RateLimiters: route.RateLimiters{
 				Auth:    s.authRateLimiter,
@@ -153,6 +186,7 @@ func NewServer(opts ...Option) *Server {
 				Webhook: s.webhookRateLimiter,
 				API:     s.apiRateLimiter,
 			},
+			RequirePermission: s.requirePermission,
 		}),
 	}
 

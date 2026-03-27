@@ -33,10 +33,10 @@ func NewOrganizationRepo(pool *pgxpool.Pool) OrganizationRepo {
 func (r *organizationRepo) Create(ctx context.Context, org *entity.Organization) (*entity.Organization, error) {
 	query := `
 		INSERT INTO organizations (
-			name, slug, email, phone, website, document_id, industry, plan, settings, is_active,
+			name, slug, email, phone, website, document_id, industry, plan, plan_id, settings, is_active,
 			created_at, updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
 			NOW(), NOW()
 		)
 		RETURNING uuid, created_at, updated_at`
@@ -50,13 +50,14 @@ func (r *organizationRepo) Create(ctx context.Context, org *entity.Organization)
 		DocumentID: org.DocumentID,
 		Industry:   org.Industry,
 		Plan:       org.Plan,
+		PlanID:     org.PlanID,
 		Settings:   org.Settings,
 		IsActive:   org.IsActive,
 	}
 
 	err := r.pool.QueryRow(ctx, query,
 		org.Name, org.Slug, org.Email, org.Phone, org.Website,
-		org.DocumentID, org.Industry, org.Plan, org.Settings, org.IsActive,
+		org.DocumentID, org.Industry, org.Plan, org.PlanID, org.Settings, org.IsActive,
 	).Scan(&result.UUID, &result.CreatedAt, &result.UpdatedAt)
 
 	if err != nil {
@@ -68,14 +69,14 @@ func (r *organizationRepo) Create(ctx context.Context, org *entity.Organization)
 
 func (r *organizationRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.Organization, error) {
 	query := `
-		SELECT uuid, name, slug, email, phone, website, document_id, industry, plan, settings, is_active, created_at, updated_at, deleted_at
+		SELECT uuid, name, slug, email, phone, website, document_id, industry, plan, plan_id, settings, is_active, created_at, updated_at, deleted_at
 		FROM organizations
 		WHERE uuid = $1 AND deleted_at IS NULL`
 
 	org := &entity.Organization{}
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&org.UUID, &org.Name, &org.Slug, &org.Email, &org.Phone, &org.Website, &org.DocumentID, &org.Industry, &org.Plan,
-		&org.Settings, &org.IsActive, &org.CreatedAt, &org.UpdatedAt, &org.DeletedAt,
+		&org.PlanID, &org.Settings, &org.IsActive, &org.CreatedAt, &org.UpdatedAt, &org.DeletedAt,
 	)
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -87,14 +88,14 @@ func (r *organizationRepo) GetByID(ctx context.Context, id uuid.UUID) (*entity.O
 
 func (r *organizationRepo) GetBySlug(ctx context.Context, slug string) (*entity.Organization, error) {
 	query := `
-		SELECT uuid, name, slug, email, phone, website, document_id, industry, plan, settings, is_active, created_at, updated_at, deleted_at
+		SELECT uuid, name, slug, email, phone, website, document_id, industry, plan, plan_id, settings, is_active, created_at, updated_at, deleted_at
 		FROM organizations
 		WHERE slug = $1 AND deleted_at IS NULL`
 
 	org := &entity.Organization{}
 	err := r.pool.QueryRow(ctx, query, slug).Scan(
 		&org.UUID, &org.Name, &org.Slug, &org.Email, &org.Phone, &org.Website, &org.DocumentID, &org.Industry, &org.Plan,
-		&org.Settings, &org.IsActive, &org.CreatedAt, &org.UpdatedAt, &org.DeletedAt,
+		&org.PlanID, &org.Settings, &org.IsActive, &org.CreatedAt, &org.UpdatedAt, &org.DeletedAt,
 	)
 
 	if errors.Is(err, pgx.ErrNoRows) {

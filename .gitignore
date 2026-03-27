@@ -27,3 +27,4 @@ coverage.out
 cmd/api/__debug*
 
 bin/*
+.planning/

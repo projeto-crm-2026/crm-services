@@ -180,15 +180,16 @@ func (c *Client) UpdateSubscription(ctx context.Context, subscriptionID string, 
 }
 
 type PaymentResponse struct {
-	ID                int64   `json:"id"`
-	Status            string  `json:"status"`
-	StatusDetail      string  `json:"status_detail"`
-	TransactionAmount float64 `json:"transaction_amount"`
-	CurrencyID        string  `json:"currency_id"`
-	DateCreated       string  `json:"date_created"`
-	DateApproved      *string `json:"date_approved"`
-	PaymentMethodID   string  `json:"payment_method_id"`
-	Description       string  `json:"description"`
+	ID                int64          `json:"id"`
+	Status            string         `json:"status"`
+	StatusDetail      string         `json:"status_detail"`
+	TransactionAmount float64        `json:"transaction_amount"`
+	CurrencyID        string         `json:"currency_id"`
+	DateCreated       string         `json:"date_created"`
+	DateApproved      *string        `json:"date_approved"`
+	PaymentMethodID   string         `json:"payment_method_id"`
+	Description       string         `json:"description"`
+	Metadata          map[string]any `json:"metadata"`
 }
 
 func (c *Client) GetPayment(ctx context.Context, paymentID string) (*PaymentResponse, error) {

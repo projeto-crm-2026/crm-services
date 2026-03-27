@@ -135,7 +135,7 @@ func main() {
 
 	// handlers
 	healthHandler := handler.NewHealthHandler()
-	userHandler := handler.NewUserHandler(userSvc, planSvc, roleSvc)
+	userHandler := handler.NewUserHandler(userSvc, planSvc, roleSvc, logger)
 	chatHandler := handler.NewChatHandler(hub, chatSvc)
 	widgetHandler := handler.NewWidgetHandler(widgetSvc)
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)

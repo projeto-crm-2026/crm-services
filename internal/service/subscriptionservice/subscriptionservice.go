@@ -79,6 +79,10 @@ func (s *subscriptionService) Subscribe(ctx context.Context, orgID uuid.UUID, pl
 	}
 
 	existingSub, err := s.subRepo.GetByOrganizationID(ctx, orgID)
+	if err != nil && !errors.Is(err, repo.ErrSubscriptionNotFound) {
+		s.logger.Error("failed to check existing subscription", "orgID", orgID, "error", err)
+		return nil, err
+	}
 	if err == nil && existingSub.Status == entity.SubscriptionActive {
 		existingPlan, _ := s.planRepo.GetByID(ctx, existingSub.PlanID)
 		if existingPlan != nil && existingPlan.Name != "free" {
@@ -119,6 +123,7 @@ func (s *subscriptionService) Subscribe(ctx context.Context, orgID uuid.UUID, pl
 
 		if err := s.subRepo.Update(ctx, existingSub); err != nil {
 			s.logger.Error("failed to update local subscription", "error", err)
+			s.compensateMpSubscription(ctx, mpSub.ID)
 			return nil, err
 		}
 		return existingSub, nil
@@ -136,6 +141,7 @@ func (s *subscriptionService) Subscribe(ctx context.Context, orgID uuid.UUID, pl
 	created, err := s.subRepo.Create(ctx, sub)
 	if err != nil {
 		s.logger.Error("failed to create local subscription", "error", err)
+		s.compensateMpSubscription(ctx, mpSub.ID)
 		return nil, err
 	}
 
@@ -162,7 +168,6 @@ func (s *subscriptionService) Cancel(ctx context.Context, orgID uuid.UUID) error
 	}
 
 	now := time.Now()
-	sub.Status = entity.SubscriptionCancelled
 	sub.CancelAtPeriodEnd = true
 	sub.CancelledAt = &now
 
@@ -171,7 +176,7 @@ func (s *subscriptionService) Cancel(ctx context.Context, orgID uuid.UUID) error
 		return err
 	}
 
-	s.logger.Info("subscription cancelled", "orgID", orgID, "accessUntil", sub.CurrentPeriodEnd)
+	s.logger.Info("subscription cancelled", "orgID", orgID, "status", sub.Status, "accessUntil", sub.CurrentPeriodEnd)
 	return nil
 }
 
@@ -260,6 +265,7 @@ func (s *subscriptionService) Upgrade(ctx context.Context, orgID uuid.UUID, newP
 
 	if err := s.subRepo.Update(ctx, sub); err != nil {
 		s.logger.Error("failed to update subscription after upgrade", "error", err)
+		s.compensateMpSubscription(ctx, mpSub.ID)
 		return nil, err
 	}
 
@@ -304,9 +310,8 @@ func (s *subscriptionService) handleSubscriptionEvent(ctx context.Context, mpSub
 
 	sub.Status = newStatus
 
-	// cancelado
 	if newStatus == entity.SubscriptionCancelled || newStatus == entity.SubscriptionExpired {
-		if sub.CurrentPeriodEnd != nil && time.Now().After(*sub.CurrentPeriodEnd) {
+		if sub.CurrentPeriodEnd == nil || time.Now().After(*sub.CurrentPeriodEnd) {
 			return s.downgradeToFree(ctx, sub)
 		}
 	}
@@ -353,13 +358,54 @@ func (s *subscriptionService) handlePaymentEvent(ctx context.Context, mpPaymentI
 		return err
 	}
 
-	amountCents := int(mpPayment.TransactionAmount * 100)
+	var sub *entity.Subscription
+	if preapprovalID, ok := mpPayment.Metadata["preapproval_id"].(string); ok && preapprovalID != "" {
+		sub, err = s.subRepo.GetByMpSubscriptionID(ctx, preapprovalID)
+		if err != nil {
+			s.logger.Warn("payment references unknown subscription", "mpPaymentID", mpPaymentID, "preapprovalID", preapprovalID, "error", err)
+			return nil
+		}
+	} else {
+		s.logger.Warn("payment webhook missing preapproval_id in metadata, skipping", "mpPaymentID", mpPaymentID)
+		return nil
+	}
 
-	s.logger.Info("payment webhook received",
+	amountCents := int(mpPayment.TransactionAmount * 100)
+	paymentStatus := mapPaymentStatus(mpPayment.Status)
+
+	var paidAt *time.Time
+	if mpPayment.DateApproved != nil {
+		if t, parseErr := time.Parse(time.RFC3339, *mpPayment.DateApproved); parseErr == nil {
+			paidAt = &t
+		}
+	}
+
+	payment := &entity.Payment{
+		OrganizationID: sub.OrganizationID,
+		SubscriptionID: sub.ID,
+		MpPaymentID:    mpPaymentID,
+		Status:         paymentStatus,
+		StatusDetail:   mpPayment.StatusDetail,
+		AmountCents:    amountCents,
+		Currency:       mpPayment.CurrencyID,
+		PaymentMethod:  mpPayment.PaymentMethodID,
+		Description:    mpPayment.Description,
+		PaidAt:         paidAt,
+	}
+
+	if _, err := s.paymentRepo.Create(ctx, payment); err != nil {
+		s.logger.Error("failed to persist new payment", "mpPaymentID", mpPaymentID, "error", err)
+		return err
+	}
+
+	s.logger.Info("payment created from webhook",
 		"mpPaymentID", mpPaymentID,
-		"status", mpPayment.Status,
+		"orgID", sub.OrganizationID,
+		"status", paymentStatus,
 		"amount", amountCents,
 	)
+
+	s.notifyPaymentByOrg(ctx, sub.OrganizationID, paymentStatus, amountCents, mpPayment.CurrencyID, mpPayment.StatusDetail)
 
 	return nil
 }
@@ -397,6 +443,18 @@ func (s *subscriptionService) ListPayments(ctx context.Context, orgID uuid.UUID)
 		return nil, err
 	}
 	return payments, nil
+}
+
+func (s *subscriptionService) compensateMpSubscription(ctx context.Context, mpSubID string) {
+	_, err := s.mpClient.UpdateSubscription(ctx, mpSubID, &mercadopago.UpdateSubscriptionRequest{
+		Status: "cancelled",
+	})
+	if err != nil {
+		s.logger.Error("CRITICAL: failed to cancel orphaned MP subscription, manual intervention required",
+			"mpSubID", mpSubID, "error", err)
+	} else {
+		s.logger.Warn("cancelled orphaned MP subscription after local DB failure", "mpSubID", mpSubID)
+	}
 }
 
 func mapMpStatus(mpStatus string) entity.SubscriptionStatus {

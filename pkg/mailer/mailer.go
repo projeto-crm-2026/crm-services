@@ -3,6 +3,7 @@ package mailer
 import (
 	"fmt"
 	"net/smtp"
+	"strings"
 )
 
 type Mailer interface {
@@ -29,7 +30,21 @@ func NewSMTPMailer(cfg SMTPConfig) Mailer {
 	return &smtpMailer{cfg: cfg}
 }
 
+func sanitizeHeader(value string) error {
+	if strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("invalid SMTP header value")
+	}
+	return nil
+}
+
 func (m *smtpMailer) send(to, subject, body string) error {
+	if err := sanitizeHeader(to); err != nil {
+		return err
+	}
+	if err := sanitizeHeader(subject); err != nil {
+		return err
+	}
+
 	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
 		m.cfg.From, to, subject, body)
 

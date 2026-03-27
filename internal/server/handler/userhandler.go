@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -19,10 +20,11 @@ type UserHandler struct {
 	service userservice.UserService
 	planSvc planservice.PlanService
 	roleSvc roleservice.RoleService
+	logger  *slog.Logger
 }
 
-func NewUserHandler(svc userservice.UserService, planSvc planservice.PlanService, roleSvc roleservice.RoleService) *UserHandler {
-	return &UserHandler{service: svc, planSvc: planSvc, roleSvc: roleSvc}
+func NewUserHandler(svc userservice.UserService, planSvc planservice.PlanService, roleSvc roleservice.RoleService, logger *slog.Logger) *UserHandler {
+	return &UserHandler{service: svc, planSvc: planSvc, roleSvc: roleSvc, logger: logger}
 }
 
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -84,8 +86,13 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	if user.OrganizationID != nil {
 		ownerRoleID, err := h.roleSvc.CreateSystemRoles(r.Context(), *user.OrganizationID)
-		if err == nil {
-			_ = h.roleSvc.AssignRole(r.Context(), *user.OrganizationID, user.ID, ownerRoleID)
+		if err != nil {
+			http.Error(w, "failed to initialize organization roles", http.StatusInternalServerError)
+			return
+		}
+		if err := h.roleSvc.AssignRole(r.Context(), *user.OrganizationID, user.ID, ownerRoleID); err != nil {
+			http.Error(w, "failed to assign owner role", http.StatusInternalServerError)
+			return
 		}
 	}
 
@@ -167,8 +174,11 @@ func (h *UserHandler) InviteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if claims.OrganizationID != nil {
-		if memberRole, err := h.roleSvc.GetMemberRole(r.Context(), *claims.OrganizationID); err == nil {
-			_ = h.roleSvc.AssignRole(r.Context(), *claims.OrganizationID, user.ID, memberRole)
+		memberRole, err := h.roleSvc.GetMemberRole(r.Context(), *claims.OrganizationID)
+		if err != nil {
+			h.logger.Error("failed to get member role", "error", err, "orgID", claims.OrganizationID)
+		} else if err := h.roleSvc.AssignRole(r.Context(), *claims.OrganizationID, user.ID, memberRole); err != nil {
+			h.logger.Error("failed to assign member role", "error", err, "userID", user.ID)
 		}
 		if usageResp, err := h.planSvc.GetOrganizationUsage(r.Context(), *claims.OrganizationID); err == nil {
 			h.planSvc.NotifyUsageWarnings(r.Context(), *claims.OrganizationID, "membros", usageResp.Usage.Members.Current, usageResp.Usage.Members.Limit)
@@ -239,7 +249,13 @@ func (h *UserHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if isOwner, _ := h.roleSvc.IsOwner(r.Context(), *claims.OrganizationID, targetUserID); isOwner {
+	isOwner, err := h.roleSvc.IsOwner(r.Context(), *claims.OrganizationID, targetUserID)
+	if err != nil {
+		http.Error(w, "failed to verify member role", http.StatusInternalServerError)
+		return
+	}
+
+	if isOwner {
 		http.Error(w, "the organization owner cannot be removed", http.StatusForbidden)
 		return
 	}
@@ -270,8 +286,14 @@ func (h *UserHandler) DeactivateMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if isOwner, _ := h.roleSvc.IsOwner(r.Context(), *claims.OrganizationID, targetUserID); isOwner {
-		http.Error(w, "the organization owner cannot be deactivated", http.StatusForbidden)
+	isOwner, err := h.roleSvc.IsOwner(r.Context(), *claims.OrganizationID, targetUserID)
+	if err != nil {
+		http.Error(w, "failed to verify member role", http.StatusInternalServerError)
+		return
+	}
+
+	if isOwner {
+		http.Error(w, "the organization owner cannot be removed", http.StatusForbidden)
 		return
 	}
 

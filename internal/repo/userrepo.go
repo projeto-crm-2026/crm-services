@@ -62,7 +62,7 @@ func (r *userRepo) Insert(ctx context.Context, name string, email string, passwo
 
 func (r *userRepo) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
 	query := `
-        SELECT id, uuid, organization_id, name, email, password_hash, status
+        SELECT id, uuid, organization_id, name, email, password_hash, role, status
         FROM "user"
         WHERE email = $1 AND deleted_at IS NULL
     `
@@ -75,6 +75,7 @@ func (r *userRepo) GetByEmail(ctx context.Context, email string) (*entity.User, 
 		&user.Name,
 		&user.Email,
 		&user.PasswordHash,
+		&user.Role,
 		&user.Status,
 	)
 	if err != nil {

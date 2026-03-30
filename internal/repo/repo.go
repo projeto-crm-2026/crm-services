@@ -113,6 +113,37 @@ func RunCustomMigrations(db *gorm.DB) error {
 		return fmt.Errorf("failed to backfill system roles: %w", err)
 	}
 
+	if err := db.Exec(`
+		DO $$
+		DECLARE
+			r RECORD;
+		BEGIN
+			FOR r IN
+				SELECT id, name FROM roles
+				WHERE is_system = true AND deleted_at IS NULL
+				AND id NOT IN (SELECT DISTINCT role_id FROM role_permissions)
+			LOOP
+				IF r.name = 'owner' THEN
+					INSERT INTO role_permissions (role_id, permission_id)
+					SELECT r.id, id FROM permissions
+					ON CONFLICT DO NOTHING;
+				ELSIF r.name = 'admin' THEN
+					INSERT INTO role_permissions (role_id, permission_id)
+					SELECT r.id, id FROM permissions
+					WHERE name NOT IN ('organizations.delete', 'organizations.manage')
+					ON CONFLICT DO NOTHING;
+				ELSIF r.name = 'member' THEN
+					INSERT INTO role_permissions (role_id, permission_id)
+					SELECT r.id, id FROM permissions
+					WHERE name IN ('members.list','contacts.create','contacts.read','contacts.update','chats.read','organizations.read','plans.read','payments.read')
+					ON CONFLICT DO NOTHING;
+				END IF;
+			END LOOP;
+		END $$;
+	`).Error; err != nil {
+		return fmt.Errorf("failed to backfill role permissions: %w", err)
+	}
+
 	return nil
 }
 

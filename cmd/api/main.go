@@ -79,13 +79,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := repo.RunCustomMigrations(gormDB); err != nil {
-		logger.Error("failed to run custom migrations", "error", err)
+	if err := repo.RunSeeds(gormDB); err != nil {
+		logger.Error("failed to run seeds", "error", err)
 		os.Exit(1)
 	}
 
-	if err := repo.RunSeeds(gormDB); err != nil {
-		logger.Error("failed to run seeds", "error", err)
+	if err := repo.RunCustomMigrations(gormDB); err != nil {
+		logger.Error("failed to run custom migrations", "error", err)
 		os.Exit(1)
 	}
 	logger.Info("migrations completed successfully")

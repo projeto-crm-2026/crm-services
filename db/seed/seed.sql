@@ -107,6 +107,18 @@ BEGIN
         'payments.read'
     );
 
+    -- create free subscription for test org
+    INSERT INTO subscriptions (uuid, organization_id, plan_id, status, cancel_at_period_end, created_at, updated_at)
+    VALUES (
+        gen_random_uuid(),
+        v_org_uuid,
+        (SELECT id FROM plans WHERE name = 'free'),
+        'active',
+        false,
+        NOW(),
+        NOW()
+    );
+
     -- create test user with owner role
     INSERT INTO "user" (uuid, organization_id, name, email, password_hash, role, role_id, status, created_at, updated_at)
     VALUES (

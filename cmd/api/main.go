@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/projeto-crm-2026/crm-services/db/migration"
+	"github.com/projeto-crm-2026/crm-services/db/seed"
 	"github.com/projeto-crm-2026/crm-services/internal/config"
 	"github.com/projeto-crm-2026/crm-services/internal/domain/entity"
 	"github.com/projeto-crm-2026/crm-services/internal/repo"
@@ -79,12 +81,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := repo.RunSeeds(gormDB); err != nil {
+	if err := seed.RunSeeds(gormDB); err != nil {
 		logger.Error("failed to run seeds", "error", err)
 		os.Exit(1)
 	}
 
-	if err := repo.RunCustomMigrations(gormDB); err != nil {
+	if err := migration.RunCustomMigrations(gormDB); err != nil {
 		logger.Error("failed to run custom migrations", "error", err)
 		os.Exit(1)
 	}
